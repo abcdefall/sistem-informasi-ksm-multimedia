@@ -1,0 +1,150 @@
+/* resources/css/auth.css */
+
+:root {
+    --color-ksm: #8A1538;
+    --color-ksm-hover: #70102c;
+    --color-bg-light: #f8fafc;
+    --color-text-main: #1f2937;
+    --color-text-muted: #6b7280;
+    --color-border: #e2e8f0;
+}
+
+/* Auth Page Layout */
+.auth-container {
+    min-height: calc(100vh - 140px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem 1rem;
+}
+
+.auth-card {
+    background-color: #ffffff;
+    border-radius: 1rem;
+    border: 1px solid var(--color-border);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+    width: 100%;
+    max-width: 28rem;
+    padding: 2rem;
+}
+
+/* Tab Switcher (Top & Role) */
+.tab-switcher {
+    background-color: #f1f5f9;
+    padding: 0.25rem;
+    border-radius: 0.5rem;
+    display: grid;
+}
+
+.tab-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    border-radius: 0.375rem;
+    transition: all 0.2s ease;
+    text-align: center;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+}
+
+.tab-btn.active {
+    background-color: #ffffff;
+    color: var(--color-text-main);
+    font-weight: 700;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.tab-btn-ksm.active {
+    background-color: #ffffff;
+    color: var(--color-ksm);
+    font-weight: 700;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Input Fields with Icons */
+.input-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon-left {
+    position: absolute;
+    left: 0.875rem;
+    color: #9ca3af;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon-right {
+    position: absolute;
+    right: 0.875rem;
+    color: #9ca3af;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    padding: 0;
+    display: flex;
+    align-items: center;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.625rem 0.875rem 0.625rem 2.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid #d1d5db;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    background-color: #ffffff;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--color-ksm);
+    box-shadow: 0 0 0 3px rgba(138, 21, 56, 0.12);
+}
+
+/* Divider & Social Login */
+.divider-text {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin: 1.25rem 0;
+}
+
+.divider-text::before,
+.divider-text::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.divider-text::before { margin-right: 0.75rem; }
+.divider-text::after { margin-left: 0.75rem; }
+
+.btn-social {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 0.625rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    background-color: #ffffff;
+    color: #374151;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: background-color 0.2s ease;
+    text-decoration: none;
+}
+
+.btn-social:hover {
+    background-color: #f9fafb;
+}
