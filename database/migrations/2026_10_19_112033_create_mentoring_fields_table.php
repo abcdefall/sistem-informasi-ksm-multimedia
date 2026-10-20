@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('mentoring_fields', function (Blueprint $table) {
-            $table->id('field_id');
+            $table->string('field_id', 20)->primary();
             $table->enum('field_name', ['Web Dev', 'Game Dev', 'UI/UX', 'Graphic Design']);
             $table->text('description')->nullable();
             $table->timestamps();

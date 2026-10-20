@@ -2,24 +2,55 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // 1. Isi Data Roles
+        DB::table('roles')->insert([
+            ['role_id' => 'ROL-001', 'role_name' => 'Peserta', 'created_at' => now(), 'updated_at' => now()],
+            ['role_id' => 'ROL-002', 'role_name' => 'Mentor', 'created_at' => now(), 'updated_at' => now()],
+            ['role_id' => 'ROL-003', 'role_name' => 'Pengurus KSM', 'created_at' => now(), 'updated_at' => now()],
+        ]);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        // 2. Isi Data Mentoring Fields (4 Peminatan)
+        DB::table('mentoring_fields')->insert([
+            ['field_id' => 'FLD-001', 'field_name' => 'Web Dev', 'description' => 'Pengembangan aplikasi web modern menggunakan Laravel dan Vue/React', 'created_at' => now(), 'updated_at' => now()],
+            ['field_id' => 'FLD-002', 'field_name' => 'Game Dev', 'description' => 'Pengembangan game interaktif menggunakan Unity atau Unreal Engine', 'created_at' => now(), 'updated_at' => now()],
+            ['field_id' => 'FLD-003', 'field_name' => 'UI/UX', 'description' => 'Perancangan antarmuka dan pengalaman pengguna berbasis riset', 'created_at' => now(), 'updated_at' => now()],
+            ['field_id' => 'FLD-004', 'field_name' => 'Graphic Design', 'description' => 'Desain visual, branding, dan aset multimedia kreatif', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        // 3. Isi Data Mentoring Periods
+        DB::table('mentoring_periods')->insert([
+            ['period_id' => 'PRD-001', 'period_name' => 'Genap 2025/2026', 'start_date' => '2026-02-01', 'end_date' => '2026-07-31', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        // 4. Isi Data Users Contoh
+        DB::table('users')->insert([
+            ['user_id' => 'USR-001', 'role_id' => 'ROL-001', 'name' => 'Andi Peserta', 'email' => 'andi@student.ksm.ac.id', 'password_hash' => Hash::make('password123'), 'created_at' => now(), 'updated_at' => now()],
+            ['user_id' => 'USR-002', 'role_id' => 'ROL-002', 'name' => 'Budi Mentor', 'email' => 'budi.mentor@ksm.ac.id', 'password_hash' => Hash::make('password123'), 'created_at' => now(), 'updated_at' => now()],
+            ['user_id' => 'USR-003', 'role_id' => 'ROL-003', 'name' => 'Siti Pengurus', 'email' => 'siti.admin@ksm.ac.id', 'password_hash' => Hash::make('password123'), 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        // 5. Isi Data Projects Contoh
+        DB::table('projects')->insert([
+            [
+                'project_id' => 'PROJ-001', 
+                'field_id' => 'FLD-001', 
+                'period_id' => 'PRD-001', 
+                'created_by' => 'USR-001', 
+                'title' => 'Platform Showcase Capstone Project KSM', 
+                'description' => 'Sistem pengarsipan dan publikasi karya mahasiswa KSM Multimedia', 
+                'status' => 'Submitted',
+                'submitted_at' => now(),
+                'created_at' => now(), 
+                'updated_at' => now()
+            ],
         ]);
     }
 }
