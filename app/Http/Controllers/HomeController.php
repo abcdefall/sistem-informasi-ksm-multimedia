@@ -4,14 +4,32 @@ namespace App\Http\Controllers;
 
 use App\Models\Project;
 use App\Models\MentoringField;
-use Illuminate\Http\Request;
 
 class HomeController extends Controller
 {
     public function index()
     {
+        return $this->renderPage('landing');
+    }
+
+    public function dashboard()
+    {
+        $roleName = auth()->user()->role?->role_name;
+
+        $dashboardViews = [
+            'Peserta' => 'dashboard.peserta',
+            'Mentor' => 'dashboard.mentor',
+            'Pengurus KSM' => 'dashboard.pengurus',
+        ];
+
+        abort_unless(isset($dashboardViews[$roleName]), 403, 'Role akun tidak memiliki dashboard.');
+
+        return $this->renderPage($dashboardViews[$roleName], $roleName);
+    }
+
+    private function renderPage(string $view, ?string $dashboardRole = null)
+    {
         try {
-            // Ambil data dari database
             $mentoringFields = MentoringField::take(4)->get();
             $publishedProjects = Project::with(['mentoringField', 'creator'])
                 ->where('status', 'Published')
@@ -24,6 +42,10 @@ class HomeController extends Controller
             $publishedProjects = collect();
         }
 
-        return view('landing', compact('mentoringFields', 'publishedProjects'));
+        return response()
+            ->view($view, compact('mentoringFields', 'publishedProjects', 'dashboardRole'))
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, private')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 }
