@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('roles', function (Blueprint $table) {
-            $table->id('role_id');
-            $table->enum('role_name', ['Peserta', 'Mentor', 'Pengurus KSM']);
+            $table->string('role_id', 20)->primary();
+            $table->enum('role_name', ['Peserta', 'Mentor', 'Pengurus KSM', 'Pengunjung'])->unique();
             $table->timestamps();
         });
     }

@@ -7,16 +7,17 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('users', function (Blueprint $table) {
-            $table->id('user_id');
-            $table->unsignedBigInteger('role_id'); // FK ke roles
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->string('password_hash');
+            $table->string('user_id', 20)->primary();
+            
+            $table->string('role_id', 20); // FK ke roles
+            $table->foreign('role_id')->references('role_id')->on('roles')->onDelete('restrict')->onUpdate('cascade');
+           
+            $table->string('name', 255);
+            $table->string('email', 255)->unique();
+            $table->string('password_hash', 255);
+
             $table->json('profile_data')->nullable();
             $table->timestamps();
-
-            // Definisi Foreign Key
-            $table->foreign('role_id')->references('role_id')->on('roles')->onDelete('restrict');
         });
     }
 

@@ -7,9 +7,10 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('mentoring_periods', function (Blueprint $table) {
-            $table->id('period_id');
-            $table->string('period_name'); // Contoh: "Semester Ganjil 2026/2027"
-            $table->boolean('is_active')->default(true);
+            $table->string('period_id', 20)->primary();
+            $table->string('period_name', 255); // Contoh: "Semester Ganjil 2026/2027"
+            $table->date('start_date');
+            $table->date('end_date');
             $table->timestamps();
         });
     }
