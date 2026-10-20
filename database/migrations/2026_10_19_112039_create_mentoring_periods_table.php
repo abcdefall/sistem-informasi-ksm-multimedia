@@ -9,6 +9,7 @@ return new class extends Migration {
         Schema::create('mentoring_periods', function (Blueprint $table) {
             $table->string('period_id', 20)->primary();
             $table->string('period_name', 255); // Contoh: "Semester Ganjil 2026/2027"
+            $table->boolean('is_active')->default(true);
             $table->date('start_date');
             $table->date('end_date');
             $table->timestamps();
