@@ -6,6 +6,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class User extends Authenticatable {
     protected $primaryKey = 'user_id';
+    protected $keyType = 'string';
+    public $incrementing = false;
     protected $fillable = ['role_id', 'name', 'email', 'password_hash', 'profile_data'];
     protected $hidden = ['password_hash']; // Laravel Auth bawaan butuh penyesuaian jika kolom bukan 'password'
     

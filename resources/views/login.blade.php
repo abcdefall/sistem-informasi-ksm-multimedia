@@ -35,11 +35,11 @@
             <!-- Card Container -->
             <div class="auth-card mx-auto">
                 
-                <!-- Switcher Atas: Masuk / Daftar Akun -->
+                <!-- Switcher Atas: Masuk / Daftar Akun
                 <div class="tab-switcher grid-cols-2 mb-6">
                     <a href="{{ route('login') }}" class="tab-btn active">Masuk</a>
                     <a href="#" class="tab-btn">Daftar Akun</a>
-                </div>
+                </div> -->
 
                 <!-- Header Icon Gembok & Judul -->
                 <div class="text-center mb-6">
@@ -52,18 +52,20 @@
                 </div>
 
                 <!-- Form Login -->
-                <form action="{{ route('login') }}" method="POST" class="space-y-4">
+                <form action="{{ route('login.submit') }}" method="POST" class="space-y-4">
                     @csrf
 
-                    <!-- Role Switcher (Peserta, Mentor, Pengurus) -->
                     <div>
-                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Daftar Sebagai</label>
-                        <input type="hidden" name="role" id="selectedRole" value="Peserta">
+                        <label class="block text-xs font-semibold text-gray-600 mb-1.5">Masuk Sebagai</label>
+                        <input type="hidden" name="role" id="selectedRole" value="{{ old('role', 'Peserta') }}">
                         <div class="tab-switcher grid-cols-3">
-                            <button type="button" onclick="selectRole('Peserta')" id="role-Peserta" class="tab-btn tab-btn-ksm active">Peserta</button>
-                            <button type="button" onclick="selectRole('Mentor')" id="role-Mentor" class="tab-btn tab-btn-ksm">Mentor</button>
-                            <button type="button" onclick="selectRole('Pengurus')" id="role-Pengurus" class="tab-btn tab-btn-ksm">Pengurus</button>
+                            <button type="button" onclick="selectRole('Peserta')" id="role-Peserta" class="tab-btn tab-btn-ksm {{ old('role', 'Peserta') === 'Peserta' ? 'active' : '' }}">Peserta</button>
+                            <button type="button" onclick="selectRole('Mentor')" id="role-Mentor" class="tab-btn tab-btn-ksm {{ old('role') === 'Mentor' ? 'active' : '' }}">Mentor</button>
+                            <button type="button" onclick="selectRole('Pengurus KSM')" id="role-Pengurus" class="tab-btn tab-btn-ksm {{ old('role') === 'Pengurus KSM' ? 'active' : '' }}">Pengurus</button>
                         </div>
+                        @error('role')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                        @enderror
                     </div>
 
                     <!-- Input Alamat Email -->
@@ -123,10 +125,10 @@
                     </button>
                 </form>
 
-                <!-- Pemisah/Divider -->
-                <div class="divider-text">ATAU</div>
+                <!-- Pemisah/Divider
+                <div class="divider-text">ATAU</div>-->
 
-                <!-- Tombol Google Login -->
+                <!-- Tombol Google Login
                 <a href="#" class="btn-social">
                     <svg class="w-4 h-4" viewBox="0 0 24 24">
                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -135,12 +137,12 @@
                         <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
                     </svg>
                     Masuk dengan Google
-                </a>
+                </a> -->
 
-                <!-- Link Pendaftaran -->
+                <!-- Link Pendaftaran
                 <p class="text-xs text-center text-gray-500 mt-6">
                     Belum memiliki akun? <a href="#" class="text-ksm font-bold hover:underline">Daftar Sekarang</a>
-                </p>
+                </p> -->
 
             </div>
 
@@ -176,13 +178,11 @@
     <script>
         function selectRole(roleName) {
             document.getElementById('selectedRole').value = roleName;
-            ['Peserta', 'Mentor', 'Pengurus'].forEach(r => {
-                const btn = document.getElementById('role-' + r);
-                if (r === roleName) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
+            ['Peserta', 'Mentor', 'Pengurus'].forEach(role => {
+                document.getElementById('role-' + role).classList.toggle(
+                    'active',
+                    role === (roleName === 'Pengurus KSM' ? 'Pengurus' : roleName)
+                );
             });
         }
 
