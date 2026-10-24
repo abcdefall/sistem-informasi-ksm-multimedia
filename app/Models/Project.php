@@ -6,9 +6,20 @@ use Illuminate\Database\Eloquent\Model;
 
 class Project extends Model {
     protected $primaryKey = 'project_id';
+    protected $keyType = 'string';
+    public $incrementing = false;
+
+    protected $casts = [
+        'submitted_at' => 'datetime',
+        'published_at' => 'datetime',
+        'publication_approved_at' => 'datetime',
+        'is_featured' => 'boolean',
+    ];
+
     protected $fillable = [
-        'field_id', 'period_id', 'title', 'description', 'thumbnail_url', 
-        'project_link', 'status', 'submitted_at', 'published_at', 'created_by'
+        'project_id', 'field_id', 'period_id', 'title', 'description', 'thumbnail_url',
+        'project_link', 'status', 'submitted_at', 'published_at', 'created_by',
+        'publication_approved_by', 'publication_approved_at', 'is_featured',
     ];
 
     public function mentoringField() {

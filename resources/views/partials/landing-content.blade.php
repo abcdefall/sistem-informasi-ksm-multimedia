@@ -133,7 +133,7 @@
                 </p>
             </div>
             <div>
-                <a href="{{ $dashboardRole ? route('dashboard') : route('login') }}" class="btn btn-primary whitespace-nowrap">
+                <a href="{{ $dashboardRole ? route('landing') : route('login') }}" class="btn btn-primary whitespace-nowrap">
                     Submit Karya Capstone
                 </a>
             </div>
