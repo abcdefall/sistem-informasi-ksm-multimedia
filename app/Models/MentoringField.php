@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class MentoringField extends Model {
     protected $primaryKey = 'field_id';
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     protected $fillable = ['field_name', 'description'];
 
     public function projects() {
