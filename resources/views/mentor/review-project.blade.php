@@ -127,7 +127,7 @@
                             <a href="{{ $projectUrl }}" target="_blank" rel="noopener noreferrer" class="mentor-review-link">Buka Demo / Repository <span aria-hidden="true">↗</span></a>
                         @endif
                         @foreach ($files as $file)
-                            <a href="{{ Storage::disk('public')->url($file->file_path) }}" target="_blank" rel="noopener noreferrer" class="mentor-review-link">{{ $file->file_name }} <span aria-hidden="true">↗</span></a>
+                            <a href="{{ route('media.show', ['path' => $file->file_path]) }}" target="_blank" rel="noopener noreferrer" class="mentor-review-link">{{ $file->file_name }} <span aria-hidden="true">↗</span></a>
                         @endforeach
                     </div>
                 @endif

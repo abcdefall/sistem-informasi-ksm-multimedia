@@ -73,7 +73,7 @@
                                 <a href="{{ $project->project_link }}" target="_blank" rel="noopener noreferrer" class="mentor-review-link">Buka Demo / Repository ↗</a>
                             @endif
                             @foreach ($files as $file)
-                                <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($file->file_path) }}" target="_blank" rel="noopener noreferrer" class="mentor-review-link">{{ $file->file_name }} ↗</a>
+                                <a href="{{ route('media.show', ['path' => $file->file_path]) }}" target="_blank" rel="noopener noreferrer" class="mentor-review-link">{{ $file->file_name }} ↗</a>
                             @endforeach
                         </div>
                         @if ($tools->isNotEmpty())

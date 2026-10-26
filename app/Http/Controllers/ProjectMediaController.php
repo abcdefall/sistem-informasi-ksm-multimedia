@@ -23,7 +23,8 @@ class ProjectMediaController extends Controller
 
         $project = Project::query()->find($segments[1]);
         abort_unless($project, 404);
-        abort_unless(Storage::disk('public')->exists($path), 404);
+        $mediaDisk = config('filesystems.project_media_disk', 'public');
+        abort_unless(Storage::disk($mediaDisk)->exists($path), 404);
 
         $user = $request->user();
         $isPrivileged = in_array($user->role?->role_name, ['Mentor', 'Pengurus KSM'], true);
@@ -35,6 +36,6 @@ class ProjectMediaController extends Controller
             403,
         );
 
-        return Storage::disk('public')->response($path);
+        return Storage::disk($mediaDisk)->response($path);
     }
 }
