@@ -41,7 +41,7 @@ RUN composer install \
 FROM php-runtime AS app
 
 WORKDIR /var/www/html
-COPY --from=composer-deps /var/www/html/vendor ./vendor
+COPY --from=composer-deps /var/www/html ./
 COPY --from=assets /app/public/build ./public/build
 
 RUN sed -ri "s!/var/www/html!${APACHE_DOCUMENT_ROOT}!g" /etc/apache2/sites-available/*.conf \
