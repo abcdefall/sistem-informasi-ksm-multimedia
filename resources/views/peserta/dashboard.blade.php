@@ -59,27 +59,10 @@
                         Project
                     </a>
                     <a href="#" class="sidebar-link">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
-                        Jadwal Mentoring
-                    </a>
-                    <a href="#" class="sidebar-link">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                        Panduan & Template
-                    </a>
-                    <a href="#" class="sidebar-link">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 21a8 8 0 0116 0"></path></svg>
                         Profil
                     </a>
                 </nav>
-
-                <div class="mt-8 mb-2 px-3 text-xs font-bold text-gray-400 tracking-wider">BANTUAN</div>
-                <nav class="sidebar-menu">
-                    <a href="#" class="sidebar-link">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                        Panduan Capstone
-                    </a>
-                </nav>
-                @include('peserta.partials.mentor-card')
 
             </div>
         </aside>
@@ -98,107 +81,15 @@
                 </div>
             @endif
 
-            <!-- Statistic Cards Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <!-- Card 1 -->
-                <div class="stat-card">
-                    <div>
-                        <p class="text-sm font-semibold text-gray-500 mb-1">Total Pengajuan</p>
-                        <h3 class="text-3xl font-bold text-gray-900 mb-1">{{ $totalProjects }} <span class="text-sm font-normal text-gray-500">Project</span></h3>
-                        <p class="text-xs text-gray-400">Total project yang Anda buat</p>
-                    </div>
-                    <div class="w-10 h-10 bg-gray-100 text-gray-500 rounded-lg flex items-center justify-center">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-                    </div>
+            @if ($project)
+                @include('peserta.partials.progress-tracker', ['project' => $project, 'activities' => $activities])
+            @else
+                <div class="rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+                    <h2 class="text-lg font-bold text-gray-900">Belum ada project</h2>
+                    <p class="mt-2 text-sm text-gray-500">Ajukan project untuk mulai melacak progresnya.</p>
+                    <a href="{{ route('dashboard.peserta.project.create') }}" class="btn btn-primary mt-5 text-sm">Ajukan Project</a>
                 </div>
-                <!-- Card 2 -->
-                <div class="stat-card">
-                    <div>
-                        <p class="text-sm font-semibold text-gray-500 mb-1">Butuh Revisi</p>
-                        <h3 class="text-3xl font-bold text-gray-900 mb-2">{{ $revisionProjects }} <span class="text-sm font-normal text-gray-500">Project</span></h3>
-                        <span class="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded-full">Perlu Tindakan</span>
-                    </div>
-                    <div class="w-10 h-10 bg-red-50 text-red-500 border border-red-100 rounded-lg flex items-center justify-center">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    </div>
-                </div>
-                <!-- Card 3 -->
-                <div class="stat-card">
-                    <div>
-                        <p class="text-sm font-semibold text-gray-500 mb-1">Siap / Published</p>
-                        <h3 class="text-3xl font-bold text-gray-900 mb-2">{{ $publishedProjects }} <span class="text-sm font-normal text-gray-500">Project</span></h3>
-                        <span class="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full">Terverifikasi</span>
-                    </div>
-                    <div class="w-10 h-10 bg-green-50 text-green-500 border border-green-100 rounded-lg flex items-center justify-center">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tabel Daftar Project -->
-            <div id="projects" class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                <!-- Table Header -->
-                <div class="p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div>
-                        <h2 class="text-lg font-bold text-gray-900">Daftar Project</h2>
-                        <p class="text-sm text-gray-500">Daftar arsip dan status moderasi capstone yang telah diajukan.</p>
-                    </div>
-                    <span class="text-sm font-semibold text-gray-600">{{ $totalProjects }} project</span>
-                </div>
-
-                <!-- Table Content -->
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100 bg-gray-50">
-                                <th class="p-4">Judul Project</th>
-                                <th class="p-4">Bidang Mentoring</th>
-                                <th class="p-4">Tanggal Pengajuan</th>
-                                <th class="p-4">Status Evaluasi</th>
-                                <th class="p-4 text-right">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            @forelse($projects as $project)
-                                <tr class="hover:bg-gray-50 transition">
-                                    <td class="p-4">
-                                        <p class="font-bold text-gray-900">{{ $project->title }}</p>
-                                        <p class="text-xs text-gray-500">{{ $project->project_id }}</p>
-                                    </td>
-                                    <td class="p-4 text-sm font-medium text-gray-700">{{ $project->mentoringField?->field_name ?? 'Belum ditentukan' }}</td>
-                                    <td class="p-4 text-sm text-gray-600">{{ ($project->submitted_at ?? $project->created_at)?->format('d M Y') ?? '-' }}</td>
-                                    <td class="p-4">
-                                        @php
-                                            $statusClass = match ($project->status) {
-                                                'Published', 'Approved' => 'status-published',
-                                                'Revision Required' => 'status-revision',
-                                                default => 'status-draft',
-                                            };
-                                        @endphp
-                                        <span class="status-badge {{ $statusClass }}">{{ $project->status }}</span>
-                                    </td>
-                                    <td class="p-4 text-right">
-                                        <a href="{{ route('dashboard.peserta.project.show', $project->project_id) }}" class="text-ksm border border-ksm hover:bg-red-50 font-medium text-xs px-3 py-1.5 rounded whitespace-nowrap">
-                                            Lihat Detail &rarr;
-                                        </a>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="5" class="p-8 text-center text-sm text-gray-500">
-                                        Belum ada project yang Anda ajukan.
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Pagination Footer -->
-                <div class="p-4 border-t border-gray-100 text-sm text-gray-500">
-                    Menampilkan {{ $projects->count() }} project
-                </div>
-            </div>
+            @endif
 
         </main>
     </div>

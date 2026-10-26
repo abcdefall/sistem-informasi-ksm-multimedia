@@ -165,7 +165,7 @@
                                     <td>
                                         <div class="flex items-center gap-2.5">
                                             @if ($project->thumbnail_url)
-                                                <img src="{{ $project->thumbnail_url }}" alt="" class="h-10 w-10 shrink-0 rounded-md border border-slate-200 object-cover">
+                                                <img src="{{ $project->thumbnail_display_url }}" alt="" class="h-10 w-10 shrink-0 rounded-md border border-slate-200 object-cover">
                                             @else
                                                 <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-400" aria-hidden="true">▧</span>
                                             @endif

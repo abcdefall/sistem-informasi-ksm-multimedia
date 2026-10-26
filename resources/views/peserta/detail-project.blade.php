@@ -49,26 +49,10 @@
                         Project
                     </a>
                     <a href="#" class="sidebar-link">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
-                        Jadwal Mentoring
-                    </a>
-                    <a href="#" class="sidebar-link">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2-2z"></path></svg>
-                        Panduan &amp; Template
-                    </a>
-                    <a href="#" class="sidebar-link">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 21a8 8 0 0116 0"></path></svg>
                         Profil
                     </a>
                 </nav>
-                <div class="mt-8 mb-2 px-3 text-xs font-bold text-gray-400 tracking-wider">BANTUAN</div>
-                <nav class="sidebar-menu">
-                    <a href="#" class="sidebar-link">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                        Panduan Capstone
-                    </a>
-                </nav>
-                @include('peserta.partials.mentor-card')
             </div>
         </aside>
 
@@ -97,17 +81,19 @@
             <section class="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm md:p-8">
                 <div class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                     <div class="min-w-0">
-                        <p class="mb-2 inline-flex rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-ksm">ID Project: {{ $project->project_id }}</p>
+                        <p class="mb-2 inline-flex rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-ksm">ID Project: {{ \Illuminate\Support\Str::limit($project->project_id, 13, '') }}</p>
                         <h1 class="text-2xl font-extrabold leading-tight text-gray-900 md:text-3xl">{{ $project->title }}</h1>
                         <p class="mt-2 text-sm text-gray-500">
                             Bidang: {{ $project->mentoringField?->field_name ?? 'Belum ditentukan' }}
                             <span class="mx-1">•</span> Periode: {{ $period->period_name ?? 'Belum ditentukan' }}
-                            <span class="mx-1">•</span> ID: {{ $project->project_id }}
+                            <span class="mx-1">•</span> ID: {{ \Illuminate\Support\Str::limit($project->project_id, 13, '') }}
                         </p>
                     </div>
                     <span class="status-badge {{ $statusClass }} self-start uppercase">{{ $project->status }}</span>
                 </div>
             </section>
+
+            @include('peserta.partials.progress-tracker', ['project' => $project, 'activities' => $activities])
 
             @forelse ($reviews as $review)
                 <section class="rounded-xl border border-gray-200 border-l-4 {{ $project->status === 'Revision Required' ? 'border-l-ksm' : 'border-l-blue-500' }} bg-white p-5 shadow-sm md:p-6">

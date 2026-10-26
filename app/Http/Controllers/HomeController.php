@@ -2,17 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Project;
 use App\Models\MentoringField;
+use App\Models\Project;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class HomeController extends Controller
 {
@@ -40,22 +42,15 @@ class HomeController extends Controller
     {
         abort_unless(auth()->user()->role?->role_name === 'Peserta', 403, 'Dashboard ini khusus peserta.');
 
-        $projects = auth()->user()->createdProjects()
+        $project = $this->participantProjectsQuery()
             ->with('mentoringField')
             ->latest('created_at')
-            ->get();
+            ->first();
 
-        return response()
-            ->view('peserta.dashboard', [
-                'projects' => $projects,
-                'totalProjects' => $projects->count(),
-                'revisionProjects' => $projects->where('status', 'Revision Required')->count(),
-                'publishedProjects' => $projects->whereIn('status', ['Approved', 'Published'])->count(),
-                'mentor' => $this->participantMentor(),
-            ])
-            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, private')
-            ->header('Pragma', 'no-cache')
-            ->header('Expires', '0');
+        return $this->privateView('peserta.dashboard', [
+            'project' => $project,
+            'activities' => $project ? $this->participantActivities($project->project_id) : collect(),
+        ]);
     }
 
     public function dashboardMentor(Request $request)
@@ -71,7 +66,7 @@ class HomeController extends Controller
             ->with(['mentoringField', 'creator'])
             ->whereIn('status', ['Submitted', 'In Review', 'Resubmitted']);
 
-        if (!empty($filters['q'])) {
+        if (! empty($filters['q'])) {
             $search = $filters['q'];
             $queueQuery->where(function ($query) use ($search): void {
                 $query->where('title', 'like', "%{$search}%")
@@ -79,7 +74,7 @@ class HomeController extends Controller
             });
         }
 
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $queueQuery->where('status', $filters['status']);
         }
 
@@ -125,7 +120,7 @@ class HomeController extends Controller
             ->with(['mentoringField', 'creator'])
             ->where('status', 'Approved');
 
-        if (!empty($filters['field'])) {
+        if (! empty($filters['field'])) {
             $queueQuery->where('field_id', $filters['field']);
         }
 
@@ -190,8 +185,8 @@ class HomeController extends Controller
             ]) as $review) {
             $activities->push([
                 'type' => 'review',
-                'title' => $review->reviewer_name . ' menyelesaikan evaluasi mentor untuk "' . $review->project_title . '".',
-                'detail' => $review->rating ? 'Skor rubrik: ' . $review->rating . '/5' : 'Review tersimpan',
+                'title' => $review->reviewer_name.' menyelesaikan evaluasi mentor untuk "'.$review->project_title.'".',
+                'detail' => $review->rating ? 'Skor rubrik: '.$review->rating.'/5' : 'Review tersimpan',
                 'user' => $review->reviewer_name,
                 'created_at' => $review->created_at,
             ]);
@@ -233,10 +228,10 @@ class HomeController extends Controller
             ->with(['mentoringField', 'creator'])
             ->where('status', 'Approved');
 
-        if (!empty($filters['field'])) {
+        if (! empty($filters['field'])) {
             $query->where('field_id', $filters['field']);
         }
-        if (!empty($filters['q'])) {
+        if (! empty($filters['q'])) {
             $search = $filters['q'];
             $query->where(function ($projectQuery) use ($search): void {
                 $projectQuery->where('title', 'like', "%{$search}%")
@@ -364,7 +359,7 @@ class HomeController extends Controller
 
                 $this->recordPengurusAudit(
                     'PUBLICATION_APPROVED',
-                    'Pengurus memberikan approval resmi untuk project "' . $project->title . '".',
+                    'Pengurus memberikan approval resmi untuk project "'.$project->title.'".',
                     $project->project_id,
                 );
 
@@ -377,7 +372,7 @@ class HomeController extends Controller
                 }
 
                 do {
-                    $reviewId = 'REV-' . Str::upper(Str::random(16));
+                    $reviewId = 'REV-'.Str::upper(Str::random(16));
                 } while (DB::table('reviews')->where('review_id', $reviewId)->exists());
 
                 DB::table('reviews')->insert([
@@ -392,7 +387,7 @@ class HomeController extends Controller
                 $project->forceFill(['status' => 'Revision Required'])->save();
                 $this->recordPengurusAudit(
                     'REVISION_REQUESTED',
-                    'Pengurus meminta revisi untuk project "' . $project->title . '".',
+                    'Pengurus meminta revisi untuk project "'.$project->title.'".',
                     $project->project_id,
                 );
 
@@ -402,7 +397,7 @@ class HomeController extends Controller
             if ($project->status === 'Published') {
                 abort(409, 'Project ini sudah dipublikasikan.');
             }
-            if (!$project->publication_approved_at) {
+            if (! $project->publication_approved_at) {
                 abort(409, 'Berikan approval resmi pengurus sebelum mempublikasikan project.');
             }
 
@@ -414,9 +409,9 @@ class HomeController extends Controller
 
             $this->recordPengurusAudit(
                 'PROJECT_PUBLISHED',
-                'Project "' . $project->title . '" dipublikasikan ke showcase. ' .
-                    'Visibilitas beranda: ' . ($project->is_featured ? 'aktif' : 'nonaktif') .
-                    '. Checklist: ' . implode(', ', array_keys($checklist)) . '.',
+                'Project "'.$project->title.'" dipublikasikan ke showcase. '.
+                    'Visibilitas beranda: '.($project->is_featured ? 'aktif' : 'nonaktif').
+                    '. Checklist: '.implode(', ', array_keys($checklist)).'.',
                 $project->project_id,
             );
         });
@@ -444,10 +439,10 @@ class HomeController extends Controller
             ->leftJoin('users', 'users.user_id', '=', 'audit_logs.user_id')
             ->leftJoin('projects', 'projects.project_id', '=', 'audit_logs.project_id');
 
-        if (!empty($filters['action'])) {
+        if (! empty($filters['action'])) {
             $query->where('audit_logs.action', $filters['action']);
         }
-        if (!empty($filters['q'])) {
+        if (! empty($filters['q'])) {
             $search = $filters['q'];
             $query->where(function ($logQuery) use ($search): void {
                 $logQuery->where('audit_logs.description', 'like', "%{$search}%")
@@ -580,7 +575,7 @@ class HomeController extends Controller
                 ->firstOrFail();
 
             do {
-                $reviewId = 'REV-' . Str::upper(Str::random(16));
+                $reviewId = 'REV-'.Str::upper(Str::random(16));
             } while (DB::table('reviews')->where('review_id', $reviewId)->exists());
 
             DB::table('reviews')->insert([
@@ -611,23 +606,19 @@ class HomeController extends Controller
     {
         $this->authorizeParticipant();
 
-        $projects = $this->participantProjectsQuery()
-            ->with('mentoringField')
+        $project = $this->participantProjectsQuery()
             ->latest('created_at')
-            ->get();
+            ->first();
 
-        $latestReviews = DB::table('reviews')
-            ->whereIn('project_id', $projects->pluck('project_id'))
-            ->select('project_id', DB::raw('MAX(created_at) as latest_review_at'))
-            ->groupBy('project_id')
-            ->get()
-            ->keyBy('project_id');
+        if (! $project) {
+            return redirect()->route('dashboard.peserta.project.create');
+        }
 
-        return $this->privateView('peserta.projects', [
-            'projects' => $projects,
-            'latestReviews' => $latestReviews,
-            'mentor' => $this->participantMentor(),
-        ]);
+        if ($project->status === 'Draft' && $project->created_by === auth()->id()) {
+            return redirect()->route('dashboard.peserta.project.edit', $project->project_id);
+        }
+
+        return redirect()->route('dashboard.peserta.project.show', $project->project_id);
     }
 
     public function showParticipantProject(string $projectId)
@@ -670,7 +661,7 @@ class HomeController extends Controller
             ->latest('created_at')
             ->get();
         $canResubmit = $project->created_by === auth()->id();
-        $mentor = $this->participantMentor();
+        $activities = $this->participantActivities($project->project_id);
 
         return $this->privateView('peserta.detail-project', compact(
             'project',
@@ -681,7 +672,7 @@ class HomeController extends Controller
             'versions',
             'files',
             'canResubmit',
-            'mentor',
+            'activities',
         ));
     }
 
@@ -704,7 +695,7 @@ class HomeController extends Controller
 
         $revisionFile = $request->file('revision_file');
         $revisionFilePath = $revisionFile?->store("projects/{$project->project_id}/revisions", 'public');
-        $nextVersion = 'v1.' . (DB::table('project_versions')
+        $nextVersion = 'v1.'.(DB::table('project_versions')
             ->where('project_id', $project->project_id)
             ->count() + 1);
 
@@ -716,7 +707,7 @@ class HomeController extends Controller
                 ]);
 
                 do {
-                    $versionId = 'VER-' . Str::upper(Str::random(15));
+                    $versionId = 'VER-'.Str::upper(Str::random(15));
                 } while (DB::table('project_versions')->where('version_id', $versionId)->exists());
 
                 DB::table('project_versions')->insert([
@@ -731,7 +722,7 @@ class HomeController extends Controller
 
                 if ($revisionFile && $revisionFilePath) {
                     do {
-                        $fileId = 'FILE-' . Str::upper(Str::random(15));
+                        $fileId = 'FILE-'.Str::upper(Str::random(15));
                     } while (DB::table('project_files')->where('file_id', $fileId)->exists());
 
                     DB::table('project_files')->insert([
@@ -761,6 +752,22 @@ class HomeController extends Controller
     {
         $this->authorizeParticipant();
 
+        $existingDraft = Project::query()
+            ->where('created_by', auth()->id())
+            ->where('status', 'Draft')
+            ->latest('created_at')
+            ->first();
+
+        if ($existingDraft) {
+            return redirect()->route('dashboard.peserta.project.edit', $existingDraft->project_id);
+        }
+
+        if ($this->hasProjectInvolvement(auth()->id())) {
+            return redirect()
+                ->route('dashboard.peserta')
+                ->with('status', 'Kamu sudah memiliki project.');
+        }
+
         return response()
             ->view('peserta.create-project', [
                 'mentoringFields' => MentoringField::orderBy('field_name')->get(),
@@ -768,27 +775,301 @@ class HomeController extends Controller
                     ->where('is_active', true)
                     ->orderByDesc('start_date')
                     ->get(),
-                'mentor' => $this->participantMentor(),
-                'participants' => DB::table('users')
-                    ->where('role_id', auth()->user()->role_id)
-                    ->orderBy('name')
-                    ->get(['user_id', 'name']),
+                'participants' => $this->availableProjectParticipants(),
             ])
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, private')
             ->header('Pragma', 'no-cache')
             ->header('Expires', '0');
     }
 
+    public function editProject(string $projectId)
+    {
+        $this->authorizeParticipant();
+
+        $project = Project::query()
+            ->where('project_id', $projectId)
+            ->where('created_by', auth()->id())
+            ->where('status', 'Draft')
+            ->firstOrFail();
+
+        $thumbnailFile = DB::table('project_files')
+            ->where('project_id', $project->project_id)
+            ->get()
+            ->first(fn ($file) => $file->file_path === $project->thumbnail_url
+                || Storage::disk('public')->url($file->file_path) === $project->thumbnail_url);
+
+        return $this->privateView('peserta.create-project', [
+            'mentoringFields' => MentoringField::orderBy('field_name')->get(),
+            'mentoringPeriods' => DB::table('mentoring_periods')
+                ->where('is_active', true)
+                ->orderByDesc('start_date')
+                ->get(),
+            'participants' => $this->availableProjectParticipants($project->project_id),
+            'project' => $project,
+            'members' => DB::table('project_members')
+                ->where('project_id', $project->project_id)
+                ->orderBy('project_member_id')
+                ->get(['user_id', 'member_role'])
+                ->map(fn ($member) => (array) $member)
+                ->all(),
+            'tools' => DB::table('project_tools')
+                ->where('project_id', $project->project_id)
+                ->orderBy('created_at')
+                ->pluck('tool_name')
+                ->all(),
+            'thumbnailName' => $thumbnailFile?->file_name,
+        ]);
+    }
+
     public function storeProject(Request $request): RedirectResponse
     {
         $this->authorizeParticipant();
 
+        $validated = $this->validateProject($request);
+
+        $submissionAction = $validated['submission_action'];
+        unset($validated['submission_action']);
+
+        $members = $validated['members'] ?? [];
+        $tools = array_map('trim', $validated['tools'] ?? []);
+        unset($validated['members'], $validated['tools'], $validated['thumbnail']);
+
+        do {
+            $projectId = 'PROJ-'.Str::upper(Str::random(15));
+        } while (Project::whereKey($projectId)->exists());
+
+        $thumbnail = $request->file('thumbnail');
+        $thumbnailPath = $thumbnail?->store("projects/{$projectId}", 'public');
+
+        try {
+            DB::transaction(function () use ($validated, $members, $tools, $projectId, $thumbnail, $thumbnailPath, $submissionAction): void {
+                $userIds = collect([(string) auth()->id(), ...array_column($members, 'user_id')])
+                    ->unique()
+                    ->sort()
+                    ->values();
+                User::query()
+                    ->whereIn('user_id', $userIds)
+                    ->orderBy('user_id')
+                    ->lockForUpdate()
+                    ->get();
+
+                if ($this->hasProjectInvolvement((string) auth()->id())) {
+                    throw ValidationException::withMessages([
+                        'project' => 'Kamu sudah memiliki project.',
+                    ]);
+                }
+
+                foreach ($members as $index => $member) {
+                    if ($this->hasProjectInvolvement($member['user_id'])) {
+                        throw ValidationException::withMessages([
+                            "members.{$index}.user_id" => 'Peserta sudah memiliki atau menjadi anggota project lain.',
+                        ]);
+                    }
+                }
+
+                Project::create([
+                    ...$validated,
+                    'project_id' => $projectId,
+                    'created_by' => auth()->id(),
+                    'thumbnail_url' => $thumbnailPath,
+                    'status' => $submissionAction,
+                    'submitted_at' => $submissionAction === 'Submitted' ? now() : null,
+                ]);
+
+                foreach ($members as $member) {
+                    DB::table('project_members')->insert([
+                        ...$member,
+                        'project_id' => $projectId,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+
+                foreach ($tools as $tool) {
+                    do {
+                        $toolId = 'TOOL-'.Str::upper(Str::random(15));
+                    } while (DB::table('project_tools')->where('tool_id', $toolId)->exists());
+
+                    DB::table('project_tools')->insert([
+                        'tool_id' => $toolId,
+                        'project_id' => $projectId,
+                        'tool_name' => $tool,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+
+                if ($thumbnail && $thumbnailPath) {
+                    do {
+                        $fileId = 'FILE-'.Str::upper(Str::random(15));
+                    } while (DB::table('project_files')->where('file_id', $fileId)->exists());
+
+                    DB::table('project_files')->insert([
+                        'file_id' => $fileId,
+                        'project_id' => $projectId,
+                        'file_name' => Str::limit(basename($thumbnail->getClientOriginalName()), 255, ''),
+                        'file_path' => $thumbnailPath,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            });
+        } catch (\Throwable $exception) {
+            if ($thumbnailPath) {
+                Storage::disk('public')->delete($thumbnailPath);
+            }
+
+            throw $exception;
+        }
+
+        return redirect()
+            ->route('dashboard.peserta')
+            ->with('status', $submissionAction === 'Draft'
+                ? 'Draft project berhasil disimpan.'
+                : 'Project berhasil diajukan.');
+    }
+
+    public function updateProject(Request $request, string $projectId): RedirectResponse
+    {
+        $this->authorizeParticipant();
+
+        $project = Project::query()
+            ->where('project_id', $projectId)
+            ->first();
+
+        abort_unless(
+            $project && $project->created_by === auth()->id() && $project->status === 'Draft',
+            403,
+        );
+
+        $validated = $this->validateProject($request, filled($project->thumbnail_url), $project->project_id);
+        $submissionAction = $validated['submission_action'];
+        unset($validated['submission_action']);
+
+        $members = $validated['members'] ?? [];
+        $tools = array_map('trim', $validated['tools'] ?? []);
+        unset($validated['members'], $validated['tools'], $validated['thumbnail']);
+
+        $thumbnail = $request->file('thumbnail');
+        $thumbnailPath = $thumbnail?->store("projects/{$project->project_id}", 'public');
+
+        try {
+            $oldThumbnailPath = DB::transaction(function () use ($projectId, $validated, $members, $tools, $thumbnail, $thumbnailPath, $submissionAction): ?string {
+                $project = Project::query()
+                    ->where('project_id', $projectId)
+                    ->lockForUpdate()
+                    ->first();
+
+                abort_unless(
+                    $project && $project->created_by === auth()->id() && $project->status === 'Draft',
+                    403,
+                );
+
+                $oldThumbnailFile = $project->thumbnail_url
+                    ? DB::table('project_files')
+                        ->where('project_id', $project->project_id)
+                        ->get()
+                        ->first(fn ($file) => $file->file_path === $project->thumbnail_url
+                            || Storage::disk('public')->url($file->file_path) === $project->thumbnail_url)
+                    : null;
+                $oldThumbnailPath = $oldThumbnailFile?->file_path;
+
+                $project->update([
+                    ...$validated,
+                    'thumbnail_url' => $thumbnailPath
+                        ? $thumbnailPath
+                        : $project->thumbnail_url,
+                    'status' => $submissionAction === 'Submitted' ? 'Submitted' : $project->status,
+                    'submitted_at' => $submissionAction === 'Submitted' ? now() : $project->submitted_at,
+                ]);
+
+                DB::table('project_members')->where('project_id', $project->project_id)->delete();
+                foreach ($members as $member) {
+                    DB::table('project_members')->insert([
+                        ...$member,
+                        'project_id' => $project->project_id,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+
+                DB::table('project_tools')->where('project_id', $project->project_id)->delete();
+                foreach ($tools as $tool) {
+                    do {
+                        $toolId = 'TOOL-'.Str::upper(Str::random(15));
+                    } while (DB::table('project_tools')->where('tool_id', $toolId)->exists());
+
+                    DB::table('project_tools')->insert([
+                        'tool_id' => $toolId,
+                        'project_id' => $project->project_id,
+                        'tool_name' => $tool,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+
+                if ($thumbnail && $thumbnailPath) {
+                    $fileData = [
+                        'file_name' => Str::limit(basename($thumbnail->getClientOriginalName()), 255, ''),
+                        'file_path' => $thumbnailPath,
+                        'updated_at' => now(),
+                    ];
+
+                    if ($oldThumbnailFile) {
+                        DB::table('project_files')
+                            ->where('file_id', $oldThumbnailFile->file_id)
+                            ->update($fileData);
+                    } else {
+                        do {
+                            $fileId = 'FILE-'.Str::upper(Str::random(15));
+                        } while (DB::table('project_files')->where('file_id', $fileId)->exists());
+
+                        DB::table('project_files')->insert([
+                            ...$fileData,
+                            'file_id' => $fileId,
+                            'project_id' => $project->project_id,
+                            'created_at' => now(),
+                        ]);
+                    }
+                }
+
+                $this->recordAudit(
+                    $submissionAction === 'Draft' ? 'DRAFT_SAVED' : 'PROJECT_SUBMITTED',
+                    $submissionAction === 'Draft'
+                        ? 'Menyimpan draft project "'.$project->title.'".'
+                        : 'Mengajukan project "'.$project->title.'" dari draft.',
+                    $project->project_id,
+                );
+
+                return $oldThumbnailPath;
+            });
+        } catch (\Throwable $exception) {
+            if ($thumbnailPath) {
+                Storage::disk('public')->delete($thumbnailPath);
+            }
+
+            throw $exception;
+        }
+
+        if ($oldThumbnailPath && $oldThumbnailPath !== $thumbnailPath) {
+            Storage::disk('public')->delete($oldThumbnailPath);
+        }
+
+        return redirect()
+            ->route('dashboard.peserta')
+            ->with('status', $submissionAction === 'Draft'
+            ? 'Draft project berhasil disimpan.'
+            : 'Project berhasil diajukan.');
+    }
+
+    private function validateProject(Request $request, bool $hasExistingThumbnail = false, ?string $projectId = null): array
+    {
         $request->merge([
             'submission_action' => $request->input('submission_action', 'Submitted'),
         ]);
         $submissionAction = $request->input('submission_action');
 
-        $validated = $request->validate([
+        return $request->validate([
             'submission_action' => ['required', Rule::in(['Draft', 'Submitted'])],
             'title' => ['required', 'string', 'max:255'],
             'field_id' => ['required', 'string', Rule::exists('mentoring_fields', 'field_id')],
@@ -817,8 +1098,27 @@ class HomeController extends Controller
             'members.*.user_id' => [
                 'required',
                 'distinct',
-                Rule::exists('users', 'user_id')
-                    ->where(fn (Builder $query) => $query->where('role_id', auth()->user()->role_id)),
+                Rule::exists('users', 'user_id')->where(function (Builder $query) use ($projectId): void {
+                    $query->where('role_id', auth()->user()->role_id)
+                        ->whereNotExists(function (Builder $subquery) use ($projectId): void {
+                            $subquery->selectRaw('1')
+                                ->from('projects')
+                                ->whereColumn('projects.created_by', 'users.user_id');
+
+                            if ($projectId !== null) {
+                                $subquery->where('projects.project_id', '<>', $projectId);
+                            }
+                        })
+                        ->whereNotExists(function (Builder $subquery) use ($projectId): void {
+                            $subquery->selectRaw('1')
+                                ->from('project_members')
+                                ->whereColumn('project_members.user_id', 'users.user_id');
+
+                            if ($projectId !== null) {
+                                $subquery->where('project_members.project_id', '<>', $projectId);
+                            }
+                        });
+                }),
             ],
             'members.*.member_role' => ['required', 'string', 'max:100'],
             'tools' => [
@@ -830,7 +1130,7 @@ class HomeController extends Controller
             'tools.*' => ['required', 'string', 'max:255', 'distinct'],
             'thumbnail' => [
                 'nullable',
-                Rule::requiredIf(fn () => $request->input('submission_action') === 'Submitted'),
+                Rule::requiredIf(fn () => $submissionAction === 'Submitted' && ! $hasExistingThumbnail),
                 'image',
                 'mimes:jpg,jpeg,png,webp',
                 'max:5120',
@@ -842,88 +1142,66 @@ class HomeController extends Controller
                 'max:255',
             ],
         ]);
-
-        $submissionAction = $validated['submission_action'];
-        unset($validated['submission_action']);
-
-        $members = $validated['members'] ?? [];
-        $tools = array_map('trim', $validated['tools'] ?? []);
-        unset($validated['members'], $validated['tools'], $validated['thumbnail']);
-
-        do {
-            $projectId = 'PROJ-' . Str::upper(Str::random(15));
-        } while (Project::whereKey($projectId)->exists());
-
-        $thumbnail = $request->file('thumbnail');
-        $thumbnailPath = $thumbnail?->store("projects/{$projectId}", 'public');
-
-        try {
-            DB::transaction(function () use ($validated, $members, $tools, $projectId, $thumbnail, $thumbnailPath, $submissionAction): void {
-                Project::create([
-                    ...$validated,
-                    'project_id' => $projectId,
-                    'created_by' => auth()->id(),
-                    'thumbnail_url' => $thumbnailPath ? Storage::disk('public')->url($thumbnailPath) : null,
-                    'status' => $submissionAction,
-                    'submitted_at' => $submissionAction === 'Submitted' ? now() : null,
-                ]);
-
-                foreach ($members as $member) {
-                    DB::table('project_members')->insert([
-                        ...$member,
-                        'project_id' => $projectId,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-                }
-
-                foreach ($tools as $tool) {
-                    do {
-                        $toolId = 'TOOL-' . Str::upper(Str::random(15));
-                    } while (DB::table('project_tools')->where('tool_id', $toolId)->exists());
-
-                    DB::table('project_tools')->insert([
-                        'tool_id' => $toolId,
-                        'project_id' => $projectId,
-                        'tool_name' => $tool,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-                }
-
-                if ($thumbnail && $thumbnailPath) {
-                    do {
-                        $fileId = 'FILE-' . Str::upper(Str::random(15));
-                    } while (DB::table('project_files')->where('file_id', $fileId)->exists());
-
-                    DB::table('project_files')->insert([
-                        'file_id' => $fileId,
-                        'project_id' => $projectId,
-                        'file_name' => Str::limit(basename($thumbnail->getClientOriginalName()), 255, ''),
-                        'file_path' => $thumbnailPath,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-                }
-            });
-        } catch (\Throwable $exception) {
-            if ($thumbnailPath) {
-                Storage::disk('public')->delete($thumbnailPath);
-            }
-
-            throw $exception;
-        }
-
-        return redirect()
-            ->route('dashboard.peserta')
-            ->with('status', $submissionAction === 'Draft'
-                ? 'Draft project berhasil disimpan.'
-                : 'Project berhasil diajukan.');
     }
 
     private function authorizeParticipant(): void
     {
         abort_unless(auth()->user()->role?->role_name === 'Peserta', 403, 'Fitur ini khusus peserta.');
+    }
+
+    private function recordAudit(string $action, string $description, string $projectId): void
+    {
+        do {
+            $logId = 'LOG-'.Str::upper(Str::random(16));
+        } while (DB::table('audit_logs')->where('log_id', $logId)->exists());
+
+        DB::table('audit_logs')->insert([
+            'log_id' => $logId,
+            'user_id' => auth()->id(),
+            'project_id' => $projectId,
+            'action' => $action,
+            'description' => $description,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function participantActivities(string $projectId): Collection
+    {
+        $auditActivities = DB::table('audit_logs')
+            ->leftJoin('users as actors', 'actors.user_id', '=', 'audit_logs.user_id')
+            ->where('audit_logs.project_id', $projectId)
+            ->orderByDesc('audit_logs.created_at')
+            ->limit(10)
+            ->get([
+                'audit_logs.action',
+                'audit_logs.description',
+                'audit_logs.created_at',
+                'actors.name as actor_name',
+            ]);
+
+        $reviewActivities = DB::table('reviews')
+            ->join('users as actors', 'actors.user_id', '=', 'reviews.reviewer_id')
+            ->where('reviews.project_id', $projectId)
+            ->orderByDesc('reviews.created_at')
+            ->limit(10)
+            ->get([
+                'reviews.comment as description',
+                'reviews.created_at',
+                'actors.name as actor_name',
+            ])
+            ->map(fn ($review) => (object) [
+                'action' => 'MENTOR_REVIEW',
+                'description' => $review->description,
+                'created_at' => $review->created_at,
+                'actor_name' => $review->actor_name,
+            ]);
+
+        return $auditActivities
+            ->concat($reviewActivities)
+            ->sortByDesc(fn ($activity) => strtotime($activity->created_at))
+            ->take(10)
+            ->values();
     }
 
     private function authorizeMentor(): void
@@ -939,7 +1217,7 @@ class HomeController extends Controller
     private function recordPengurusAudit(string $action, string $description, ?string $projectId = null): void
     {
         do {
-            $logId = 'LOG-' . Str::upper(Str::random(16));
+            $logId = 'LOG-'.Str::upper(Str::random(16));
         } while (DB::table('audit_logs')->where('log_id', $logId)->exists());
 
         DB::table('audit_logs')->insert([
@@ -960,25 +1238,58 @@ class HomeController extends Controller
             ->whereIn('status', ['Submitted', 'In Review', 'Resubmitted']);
     }
 
-    private function participantMentor(): ?User
-    {
-        return User::query()
-            ->whereHas('role', fn ($query) => $query->where('role_name', 'Mentor'))
-            ->orderBy('name')
-            ->first(['user_id', 'name', 'email']);
-    }
-
-    private function participantProjectsQuery()
+    private function participantProjectsQuery(): EloquentBuilder
     {
         $userId = auth()->id();
 
         return Project::query()
             ->where(function ($query) use ($userId): void {
                 $query->where('created_by', $userId)
+                    ->orWhere(function ($memberQuery) use ($userId): void {
+                        $memberQuery->where('status', '<>', 'Draft')
+                            ->whereIn('project_id', DB::table('project_members')
+                                ->select('project_id')
+                                ->where('user_id', $userId));
+                    });
+            });
+    }
+
+    private function hasProjectInvolvement(string $userId): bool
+    {
+        return Project::query()
+            ->where(function ($query) use ($userId): void {
+                $query->where('created_by', $userId)
                     ->orWhereIn('project_id', DB::table('project_members')
                         ->select('project_id')
                         ->where('user_id', $userId));
-            });
+            })
+            ->exists();
+    }
+
+    private function availableProjectParticipants(?string $projectId = null): Collection
+    {
+        return DB::table('users')
+            ->where('role_id', auth()->user()->role_id)
+            ->whereNotExists(function (Builder $query) use ($projectId): void {
+                $query->selectRaw('1')
+                    ->from('projects')
+                    ->whereColumn('projects.created_by', 'users.user_id');
+
+                if ($projectId !== null) {
+                    $query->where('projects.project_id', '<>', $projectId);
+                }
+            })
+            ->whereNotExists(function (Builder $query) use ($projectId): void {
+                $query->selectRaw('1')
+                    ->from('project_members')
+                    ->whereColumn('project_members.user_id', 'users.user_id');
+
+                if ($projectId !== null) {
+                    $query->where('project_members.project_id', '<>', $projectId);
+                }
+            })
+            ->orderBy('name')
+            ->get(['user_id', 'name']);
     }
 
     private function privateView(string $view, array $data)
