@@ -6,9 +6,15 @@ use App\Http\Controllers\HomeController;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 
-Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
+// Halaman login: hanya untuk yang belum login
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [AuthController::class, 'login'])
+        ->middleware('throttle:5,1')
+        ->name('login.submit');
+});
 
+// Semua yang sudah login
 Route::middleware('auth')->group(function () {
     Route::get('/landing', [HomeController::class, 'landingRole'])->name('landing');
     Route::get('/dashboard/peserta', [HomeController::class, 'dashboardPeserta'])->name('dashboard.peserta');

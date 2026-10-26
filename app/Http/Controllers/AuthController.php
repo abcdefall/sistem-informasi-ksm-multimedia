@@ -32,7 +32,7 @@ class AuthController extends Controller
         $roleName = $credentials['role'];
         unset($credentials['role']);
 
-        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+        if (! Auth::attempt($credentials, false)) {
             throw ValidationException::withMessages([
                 'email' => 'Email atau kata sandi yang dimasukkan tidak sesuai.',
             ]);

@@ -137,14 +137,13 @@ test('the public landing page stays public when a user is authenticated', functi
         ->assertDontSee('Keluar');
 });
 
-test('an authenticated user can open the login form to switch accounts', function () {
+test('an authenticated user is redirected from the login form to landing', function () {
     createTestUser();
     $user = \App\Models\User::where('email', 'andi@example.com')->firstOrFail();
 
     $this->actingAs($user)
         ->get(route('login'))
-        ->assertOk()
-        ->assertSee('Masuk ke Akun');
+        ->assertRedirect(route('landing'));
 });
 
 test('a participant logs in and sees the participant dashboard', function () {
@@ -735,7 +734,7 @@ test('only mentors can review projects and projects outside the queue are unavai
     $this->assertDatabaseCount('reviews', 0);
 });
 
-test('logging in as a mentor replaces the previous participant session', function () {
+test('an authenticated participant is redirected from posting login to landing', function () {
     createTestUser();
     $participant = \App\Models\User::where('email', 'andi@example.com')->firstOrFail();
     $this->actingAs($participant);
@@ -765,11 +764,10 @@ test('logging in as a mentor replaces the previous participant session', functio
     $this->get(route('landing'))
         ->assertOk()
         ->assertSee('Selamat datang,')
-        ->assertSee('Budi Mentor')
-        ->assertSee('Budi Mentor')
-        ->assertSee('(Mentor)')
-        ->assertDontSee('Andi Peserta')
-        ->assertDontSee('(Peserta)');
+        ->assertSee('Andi Peserta')
+        ->assertSee('(Peserta)')
+        ->assertDontSee('Budi Mentor')
+        ->assertDontSee('(Mentor)');
 });
 
 test('the selected role must match the user account role', function () {
