@@ -35,22 +35,7 @@ class DatabaseSeeder extends Seeder
             ['user_id' => 'USR-001', 'role_id' => 'ROL-001', 'name' => 'Andi Peserta', 'email' => 'andi@student.ksm.ac.id', 'password_hash' => Hash::make('password123'), 'created_at' => now(), 'updated_at' => now()],
             ['user_id' => 'USR-002', 'role_id' => 'ROL-002', 'name' => 'Budi Mentor', 'email' => 'budi.mentor@ksm.ac.id', 'password_hash' => Hash::make('password123'), 'created_at' => now(), 'updated_at' => now()],
             ['user_id' => 'USR-003', 'role_id' => 'ROL-003', 'name' => 'Siti Pengurus', 'email' => 'siti.admin@ksm.ac.id', 'password_hash' => Hash::make('password123'), 'created_at' => now(), 'updated_at' => now()],
-        ]);
-
-        // 5. Isi Data Projects Contoh
-        DB::table('projects')->insert([
-            [
-                'project_id' => 'PROJ-001', 
-                'field_id' => 'FLD-001', 
-                'period_id' => 'PRD-001', 
-                'created_by' => 'USR-001', 
-                'title' => 'Platform Showcase Capstone Project KSM', 
-                'description' => 'Sistem pengarsipan dan publikasi karya mahasiswa KSM Multimedia', 
-                'status' => 'Submitted',
-                'submitted_at' => now(),
-                'created_at' => now(), 
-                'updated_at' => now()
-            ],
+            ['user_id' => 'USR-004', 'role_id' => 'ROL-001', 'name' => 'Dina Peserta', 'email' => 'dina@student.ksm.ac.id', 'password_hash' => Hash::make('password123'), 'created_at' => now(), 'updated_at' => now()],
         ]);
     }
 }
