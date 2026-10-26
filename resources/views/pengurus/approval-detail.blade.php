@@ -62,7 +62,7 @@
 
                         <div class="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                             @if ($project->thumbnail_url)
-                                <img src="{{ $project->thumbnail_url }}" alt="Thumbnail {{ $project->title }}" class="max-h-[24rem] w-full object-contain">
+                                <img src="{{ $project->thumbnail_display_url }}" alt="Thumbnail {{ $project->title }}" class="max-h-[24rem] w-full object-contain">
                             @else
                                 <div class="flex min-h-48 items-center justify-center text-sm text-slate-400">Thumbnail project belum tersedia</div>
                             @endif

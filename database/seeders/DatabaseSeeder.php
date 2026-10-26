@@ -32,10 +32,10 @@ class DatabaseSeeder extends Seeder
 
         // 4. Isi Data Users Contoh
         DB::table('users')->insert([
-            ['user_id' => 'USR-001', 'role_id' => 'ROL-001', 'name' => 'Andi Peserta', 'email' => 'andi@student.ksm.ac.id', 'password_hash' => Hash::make('password123'), 'created_at' => now(), 'updated_at' => now()],
+            ['user_id' => 'USR-001', 'role_id' => 'ROL-001', 'name' => 'Andi Peserta', 'email' => 'andi.student@ksm.ac.id', 'password_hash' => Hash::make('password123'), 'created_at' => now(), 'updated_at' => now()],
             ['user_id' => 'USR-002', 'role_id' => 'ROL-002', 'name' => 'Budi Mentor', 'email' => 'budi.mentor@ksm.ac.id', 'password_hash' => Hash::make('password123'), 'created_at' => now(), 'updated_at' => now()],
             ['user_id' => 'USR-003', 'role_id' => 'ROL-003', 'name' => 'Siti Pengurus', 'email' => 'siti.admin@ksm.ac.id', 'password_hash' => Hash::make('password123'), 'created_at' => now(), 'updated_at' => now()],
-            ['user_id' => 'USR-004', 'role_id' => 'ROL-001', 'name' => 'Dina Peserta', 'email' => 'dina@student.ksm.ac.id', 'password_hash' => Hash::make('password123'), 'created_at' => now(), 'updated_at' => now()],
+            ['user_id' => 'USR-004', 'role_id' => 'ROL-001', 'name' => 'Dina Peserta', 'email' => 'dina.student@ksm.ac.id', 'password_hash' => Hash::make('password123'), 'created_at' => now(), 'updated_at' => now()],
         ]);
     }
 }

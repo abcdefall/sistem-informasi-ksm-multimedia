@@ -92,7 +92,7 @@
                 <div class="custom-card">
                     <div class="showcase-image-wrapper">
                         @if($project->thumbnail_url)
-                            <img src="{{ $project->thumbnail_url }}" alt="{{ $project->title }}">
+                            <img src="{{ $project->thumbnail_display_url }}" alt="{{ $project->title }}">
                         @else
                             <div class="w-full h-full flex items-center justify-center text-gray-400">Tanpa Gambar</div>
                         @endif

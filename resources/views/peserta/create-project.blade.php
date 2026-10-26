@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ajukan Project - KSM Multimedia</title>
+    <title>{{ isset($project) ? 'Lanjutkan Draft Project' : 'Ajukan Project' }} - KSM Multimedia</title>
     <script src="https://cdn.tailwindcss.com"></script>
     @vite(['resources/css/landing.css', 'resources/css/dashboard.css'])
 </head>
@@ -49,47 +49,50 @@
                         Project
                     </a>
                     <a href="#" class="sidebar-link">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
-                        Jadwal Mentoring
-                    </a>
-                    <a href="#" class="sidebar-link">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a2 2 0 01.293.707V19a2 2 0 01-2-2z"></path></svg>
-                        Panduan & Template
-                    </a>
-                    <a href="#" class="sidebar-link">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 21a8 8 0 0116 0"></path></svg>
                         Profil
                     </a>
                 </nav>
-                <div class="mt-8 mb-2 px-3 text-xs font-bold text-gray-400 tracking-wider">BANTUAN</div>
-                <nav class="sidebar-menu">
-                    <a href="#" class="sidebar-link">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                        Panduan Capstone
-                    </a>
-                </nav>
-                @include('peserta.partials.mentor-card')
             </div>
         </aside>
 
         <main class="participant-content">
+            @php
+                $isEditing = isset($project);
+                $formMembers = old('members', $isEditing ? $members : []);
+                $formTools = old('tools', $isEditing ? $tools : []);
+                $hasThumbnail = $isEditing && filled($project->thumbnail_url);
+            @endphp
             <div class="rounded-xl border border-red-100 bg-white p-6 shadow-sm md:p-8">
                 <div class="mb-7 flex flex-col justify-between gap-4 border-b border-red-50 pb-6 md:flex-row md:items-start">
                     <div>
                         <p class="section-label">Portal Peserta</p>
-                        <h1 class="text-2xl font-extrabold text-gray-900 md:text-3xl">Form Pengajuan Capstone Project</h1>
+                        <h1 class="text-2xl font-extrabold text-gray-900 md:text-3xl">{{ $isEditing ? 'Lanjutkan Draft Project' : 'Form Pengajuan Capstone Project' }}</h1>
                         <p class="mt-2 max-w-3xl text-sm leading-relaxed text-gray-500">Isi formulir dengan data project yang akurat. Pengajuan akan melalui tahapan kurasi mentor sebelum dipertimbangkan untuk showcase publik.</p>
                     </div>
                     <span class="inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-red-100 bg-red-50 px-3 py-1.5 text-xs font-bold text-ksm">
                         <span class="h-2 w-2 rounded-full bg-ksm"></span>
-                        ID dibuat setelah disimpan
+                        ID dibuat otomatis saat pertama kali disimpan
                     </span>
                 </div>
 
-                <div class="submission-progress mb-8" aria-label="Tahapan pengajuan project">
-                    <div class="submission-step active"><span class="submission-step-bar"></span><span class="submission-step-label"><span class="submission-step-number">1</span>Informasi Utama</span></div>
-                    <div class="submission-step"><span class="submission-step-bar"></span><span class="submission-step-label"><span class="submission-step-number">2</span>Berkas &amp; Aset</span></div>
-                    <div class="submission-step"><span class="submission-step-bar"></span><span class="submission-step-label"><span class="submission-step-number">3</span>Review &amp; Kirim</span></div>
+                <div class="submission-progress mb-8" aria-label="Tahapan pengajuan project" data-has-thumbnail="{{ $hasThumbnail ? 'true' : 'false' }}">
+                    <button type="button" class="submission-step active" data-target="section-identitas" aria-current="step">
+                        <span class="submission-step-bar"></span>
+                        <span class="submission-step-label"><span class="submission-step-number">1</span>Identitas</span>
+                    </button>
+                    <button type="button" class="submission-step" data-target="section-tim">
+                        <span class="submission-step-bar"></span>
+                        <span class="submission-step-label"><span class="submission-step-number">2</span>Tim &amp; Teknologi</span>
+                    </button>
+                    <button type="button" class="submission-step" data-target="section-deskripsi">
+                        <span class="submission-step-bar"></span>
+                        <span class="submission-step-label"><span class="submission-step-number">3</span>Deskripsi</span>
+                    </button>
+                    <button type="button" class="submission-step" data-target="section-berkas">
+                        <span class="submission-step-bar"></span>
+                        <span class="submission-step-label"><span class="submission-step-number">4</span>Berkas &amp; Media</span>
+                    </button>
                 </div>
 
                 @if ($errors->any())
@@ -109,14 +112,17 @@
                     </div>
                 @endif
 
-                <form action="{{ route('dashboard.peserta.project.store') }}" method="POST" enctype="multipart/form-data" class="space-y-8">
+                <form action="{{ $isEditing ? route('dashboard.peserta.project.update', $project->project_id) : route('dashboard.peserta.project.store') }}" method="POST" enctype="multipart/form-data" class="space-y-8">
                     @csrf
-                    <section>
+                    @if ($isEditing)
+                        @method('PUT')
+                    @endif
+                    <section id="section-identitas">
                         <h2 class="form-section-title"><span class="text-ksm">01.</span> Detail Identitas Project</h2>
                         <div class="space-y-5">
                             <div>
                                 <label for="title" class="form-label">Judul Project <span class="required">*</span></label>
-                                <input id="title" type="text" name="title" value="{{ old('title') }}" class="form-input" maxlength="255" placeholder="Contoh: Interactive WebGL Physics Simulation" required>
+                                <input id="title" type="text" name="title" value="{{ old('title', $project->title ?? '') }}" class="form-input" maxlength="255" placeholder="Contoh: Interactive WebGL Physics Simulation" required>
                                 @error('title') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                             </div>
 
@@ -126,7 +132,7 @@
                                     <select id="field_id" name="field_id" class="form-select" required>
                                         <option value="">Pilih bidang mentoring</option>
                                         @foreach ($mentoringFields as $field)
-                                            <option value="{{ $field->field_id }}" @selected(old('field_id') === $field->field_id)>{{ $field->field_name }}</option>
+                                            <option value="{{ $field->field_id }}" @selected(old('field_id', $project->field_id ?? '') === $field->field_id)>{{ $field->field_name }}</option>
                                         @endforeach
                                     </select>
                                     @error('field_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
@@ -136,7 +142,7 @@
                                     <select id="period_id" name="period_id" class="form-select" required>
                                         <option value="">Pilih periode aktif</option>
                                         @foreach ($mentoringPeriods as $period)
-                                            <option value="{{ $period->period_id }}" @selected(old('period_id') === $period->period_id)>{{ $period->period_name }}</option>
+                                            <option value="{{ $period->period_id }}" @selected(old('period_id', $project->period_id ?? '') === $period->period_id)>{{ $period->period_name }}</option>
                                         @endforeach
                                     </select>
                                     @error('period_id') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
@@ -145,7 +151,7 @@
                         </div>
                     </section>
 
-                    <section>
+                    <section id="section-tim">
                         <h2 class="form-section-title"><span class="text-ksm">02.</span> Tim &amp; Teknologi</h2>
                         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                             <div>
@@ -157,17 +163,17 @@
                                 </div>
                                 <p class="mb-3 text-xs text-gray-500">Wajib pilih minimal satu akun Peserta saat mengirim. Pilih diri sendiri jika Anda juga anggota tim, lalu isi peran setiap anggota. Draft boleh disimpan tanpa anggota.</p>
                                 <div id="member-list" class="space-y-3">
-                                    @foreach (old('members', []) as $index => $member)
+                                    @foreach ($formMembers as $member)
                                         <div class="member-row rounded-lg border border-gray-200 p-3">
                                             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                                <select name="members[{{ $index }}][user_id]" class="form-select" aria-label="Anggota project" required>
+                                                <select name="members[{{ $loop->index }}][user_id]" class="form-select" aria-label="Anggota project" required>
                                                     <option value="">Pilih peserta</option>
                                                     @foreach ($participants as $participant)
                                                         <option value="{{ $participant->user_id }}" @selected(($member['user_id'] ?? '') === $participant->user_id)>{{ $participant->name }}</option>
                                                     @endforeach
                                                 </select>
                                                 <div class="flex gap-2">
-                                                    <input type="text" name="members[{{ $index }}][member_role]" value="{{ $member['member_role'] ?? '' }}" class="form-input" maxlength="100" placeholder="Peran, mis. UI Designer" required>
+                                                    <input type="text" name="members[{{ $loop->index }}][member_role]" value="{{ $member['member_role'] ?? '' }}" class="form-input" maxlength="100" placeholder="Peran, mis. UI Designer" required>
                                                     <button type="button" class="remove-row rounded-md px-3 text-gray-500 hover:bg-red-50 hover:text-red-700" aria-label="Hapus anggota">&times;</button>
                                                 </div>
                                             </div>
@@ -190,9 +196,9 @@
                                 </div>
                                 <p class="mb-3 text-xs text-gray-500">Tambahkan minimal satu teknologi saat mengirim. Draft boleh disimpan tanpa tools.</p>
                                 <div id="tool-list" class="space-y-3">
-                                    @foreach (old('tools', []) as $index => $tool)
+                                    @foreach ($formTools as $tool)
                                         <div class="tool-row flex gap-2">
-                                            <input type="text" name="tools[{{ $index }}]" value="{{ $tool }}" class="form-input" maxlength="255" placeholder="Contoh: Laravel, Figma" required>
+                                            <input type="text" name="tools[{{ $loop->index }}]" value="{{ $tool }}" class="form-input" maxlength="255" placeholder="Contoh: Laravel, Figma" required>
                                             <button type="button" class="remove-row rounded-md px-3 text-gray-500 hover:bg-red-50 hover:text-red-700" aria-label="Hapus tools">&times;</button>
                                         </div>
                                     @endforeach
@@ -203,38 +209,44 @@
                         </div>
                     </section>
 
-                    <section>
+                    <section id="section-deskripsi">
                         <h2 class="form-section-title"><span class="text-ksm">03.</span> Deskripsi &amp; Ringkasan Project</h2>
                         <div>
                             <div class="mb-2 flex items-end justify-between gap-3">
                                 <label for="description" class="form-label mb-0">Deskripsi Karya <span class="required">*</span></label>
                                 <span id="description-word-count" class="text-xs font-semibold text-gray-400">0 / 150 kata</span>
                             </div>
-                            <textarea id="description" name="description" rows="6" maxlength="5000" class="form-textarea" placeholder="Jelaskan latar belakang, tujuan, inovasi, dan fitur utama karya..." required>{{ old('description') }}</textarea>
+                            <textarea id="description" name="description" rows="6" maxlength="5000" class="form-textarea" placeholder="Jelaskan latar belakang, tujuan, inovasi, dan fitur utama karya..." required>{{ old('description', $project->description ?? '') }}</textarea>
                             <p class="mt-1 text-xs text-gray-500">Minimal 150 kata untuk dikirim, maksimal 5.000 karakter. Draft dapat disimpan sebelum lengkap.</p>
                             @error('description') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                         </div>
                     </section>
 
-                    <section>
+                    <section id="section-berkas">
                         <h2 class="form-section-title"><span class="text-ksm">04.</span> Berkas &amp; Media Display</h2>
                         <div class="space-y-5">
                             <div>
-                                <label for="thumbnail" class="form-label">Media Cover / Thumbnail <span class="required">*</span></label>
+                                <label for="thumbnail" class="form-label">Media Cover / Thumbnail @unless ($hasThumbnail)<span class="required">*</span>@endunless</label>
+                                @if ($hasThumbnail)
+                                    <div class="mb-3 flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                        <img src="{{ $project->thumbnail_display_url }}" alt="Thumbnail project saat ini" class="h-14 w-20 rounded object-cover">
+                                        <span class="text-sm font-medium text-gray-700">{{ $thumbnailName ?? basename(parse_url($project->thumbnail_url, PHP_URL_PATH)) }}</span>
+                                    </div>
+                                @endif
                                 <label for="thumbnail" class="file-drop-zone block">
                                     <span class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-white text-ksm shadow-sm">
                                         <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
                                     </span>
                                     <span class="block text-sm font-semibold text-gray-700">Tarik dan lepas gambar di sini, atau <span class="text-ksm underline">pilih berkas</span></span>
                                     <span class="mt-2 block text-xs text-gray-500">JPG, PNG, atau WEBP. Maksimal 5 MB.</span>
-                                    <span id="thumbnail-name" class="mt-2 block text-xs font-semibold text-ksm">{{ old('thumbnail') ? 'Pilih kembali file thumbnail setelah validasi.' : '' }}</span>
-                                    <input id="thumbnail" type="file" name="thumbnail" class="sr-only" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" @required(!old('submission_action') || old('submission_action') === 'Submitted')>
+                                    <span id="thumbnail-name" class="mt-2 block text-xs font-semibold text-ksm">{{ old('thumbnail') ? 'Pilih kembali file thumbnail setelah validasi.' : ($hasThumbnail ? 'Pilih berkas baru hanya jika ingin mengganti thumbnail.' : '') }}</span>
+                                    <input id="thumbnail" type="file" name="thumbnail" class="sr-only" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" @required(!$hasThumbnail && (!old('submission_action') || old('submission_action') === 'Submitted'))>
                                 </label>
                                 @error('thumbnail') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                             </div>
                             <div>
                                 <label for="project_link" class="form-label">Link Demo atau Repository <span class="required">*</span></label>
-                                <input id="project_link" type="url" name="project_link" value="{{ old('project_link') }}" class="form-input" maxlength="255" placeholder="https://contoh.com/project" @required(!old('submission_action') || old('submission_action') === 'Submitted')>
+                                <input id="project_link" type="url" name="project_link" value="{{ old('project_link', $project->project_link ?? '') }}" class="form-input" maxlength="255" placeholder="https://contoh.com/project" @required(!old('submission_action') || old('submission_action') === 'Submitted')>
                                 <p class="mt-1 text-xs text-gray-500">Wajib saat mengirim sebagai bukti project. Draft boleh disimpan tanpa link.</p>
                                 @error('project_link') <p class="mt-1 text-sm text-red-600">{{ $message }}</p> @enderror
                             </div>
@@ -306,8 +318,11 @@
             const thumbnail = document.getElementById('thumbnail');
             const description = document.getElementById('description');
             const wordCount = document.getElementById('description-word-count');
-            let memberIndex = {{ count(old('members', [])) }};
-            let toolIndex = {{ count(old('tools', [])) }};
+            const progress = document.querySelector('.submission-progress');
+            const progressSteps = [...progress.querySelectorAll('.submission-step')];
+            const hasExistingThumbnail = progress.dataset.hasThumbnail === 'true';
+            let memberIndex = memberList.querySelectorAll('.member-row').length;
+            let toolIndex = toolList.querySelectorAll('.tool-row').length;
 
             const updateWordCount = () => {
                 const words = description.value.trim().match(/\S+/g) ?? [];
@@ -315,30 +330,108 @@
                 wordCount.classList.toggle('text-ksm', words.length >= 150);
             };
 
-            description?.addEventListener('input', updateWordCount);
+            const updateProgress = () => {
+                const complete = [
+                    Boolean(document.getElementById('title').value.trim())
+                        && Boolean(document.getElementById('field_id').value)
+                        && Boolean(document.getElementById('period_id').value),
+                    [...memberList.querySelectorAll('.member-row')].some((row) =>
+                        Boolean(row.querySelector('[name$="[user_id]"]').value)
+                        && Boolean(row.querySelector('[name$="[member_role]"]').value.trim())
+                    ) && [...toolList.querySelectorAll('.tool-row')].some((row) =>
+                        Boolean(row.querySelector('input').value.trim())
+                    ),
+                    (description.value.trim().match(/\S+/g) ?? []).length >= 150,
+                    Boolean(thumbnail.files.length || hasExistingThumbnail)
+                        && Boolean(document.getElementById('project_link').value.trim()),
+                ];
+
+                progressSteps.forEach((step, index) => {
+                    step.classList.toggle('is-complete', complete[index]);
+                    step.querySelector('.submission-step-number').textContent = complete[index] ? '✓' : String(index + 1);
+                });
+            };
+
             updateWordCount();
 
             addMember?.addEventListener('click', () => {
                 const html = document.getElementById('member-template').innerHTML.replace(/__INDEX__/g, memberIndex++);
                 memberList.insertAdjacentHTML('beforeend', html);
+                updateProgress();
             });
 
             addTool?.addEventListener('click', () => {
                 const html = document.getElementById('tool-template').innerHTML.replace(/__INDEX__/g, toolIndex++);
                 toolList.insertAdjacentHTML('beforeend', html);
                 toolList.lastElementChild.querySelector('input').focus();
+                updateProgress();
             });
 
             document.addEventListener('click', (event) => {
                 const removeButton = event.target.closest('.remove-row');
                 if (removeButton) {
                     removeButton.closest('.member-row, .tool-row').remove();
+                    updateProgress();
                 }
             });
 
             thumbnail?.addEventListener('change', () => {
                 document.getElementById('thumbnail-name').textContent = thumbnail.files[0]?.name ?? '';
+                updateProgress();
             });
+
+            const form = document.querySelector('form');
+            form.addEventListener('input', (event) => {
+                if (event.target === description) {
+                    updateWordCount();
+                }
+                updateProgress();
+            });
+            form.addEventListener('change', updateProgress);
+            progressSteps.forEach((step) => {
+                step.addEventListener('click', () => {
+                    document.getElementById(step.dataset.target).scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            });
+
+            const sections = progressSteps.map((step) => document.getElementById(step.dataset.target));
+            const intersectingSections = new Set();
+            const setActiveStep = () => {
+                const focusLine = window.innerHeight * 0.35;
+                const activeSection = [...intersectingSections]
+                    .sort((first, second) =>
+                        Math.abs(first.getBoundingClientRect().top - focusLine)
+                        - Math.abs(second.getBoundingClientRect().top - focusLine)
+                    )[0];
+
+                if (!activeSection) {
+                    return;
+                }
+
+                progressSteps.forEach((step) => {
+                    const isActive = step.dataset.target === activeSection.id;
+                    step.classList.toggle('active', isActive);
+                    if (isActive) {
+                        step.setAttribute('aria-current', 'step');
+                    } else {
+                        step.removeAttribute('aria-current');
+                    }
+                });
+            };
+
+            const sectionObserver = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        intersectingSections.add(entry.target);
+                    } else {
+                        intersectingSections.delete(entry.target);
+                    }
+                });
+                setActiveStep();
+            }, { rootMargin: '-20% 0px -60% 0px' });
+
+            sections.forEach((section) => sectionObserver.observe(section));
+            updateProgress();
 
             const dropZone = thumbnail?.closest('.file-drop-zone');
             dropZone?.addEventListener('dragover', (event) => {

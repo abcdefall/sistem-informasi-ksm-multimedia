@@ -3,10 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
-class Project extends Model {
+class Project extends Model
+{
     protected $primaryKey = 'project_id';
+
     protected $keyType = 'string';
+
     public $incrementing = false;
 
     protected $casts = [
@@ -22,15 +26,33 @@ class Project extends Model {
         'publication_approved_by', 'publication_approved_at', 'is_featured',
     ];
 
-    public function mentoringField() {
+    public function getThumbnailDisplayUrlAttribute(): ?string
+    {
+        $thumbnail = $this->thumbnail_url;
+
+        if (! $thumbnail) {
+            return null;
+        }
+
+        if (Str::startsWith($thumbnail, ['http://', 'https://'])) {
+            return $thumbnail;
+        }
+
+        return route('media.show', ['path' => $thumbnail], false);
+    }
+
+    public function mentoringField()
+    {
         return $this->belongsTo(MentoringField::class, 'field_id', 'field_id');
     }
 
-    public function creator() {
+    public function creator()
+    {
         return $this->belongsTo(User::class, 'created_by', 'user_id');
     }
 
-    public function members() {
+    public function members()
+    {
         return $this->hasMany(ProjectMember::class, 'project_id', 'project_id');
     }
 }
