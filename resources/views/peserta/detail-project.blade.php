@@ -144,7 +144,7 @@
                                 <p class="text-sm font-semibold text-gray-800">Versi {{ $version->version_number }} • {{ \Illuminate\Support\Carbon::parse($version->created_at)->format('d M Y, H:i') }}</p>
                                 @if ($version->changelog)<p class="mt-1 whitespace-pre-line text-sm text-gray-600">{{ $version->changelog }}</p>@endif
                                 @if ($version->file_path)
-                                    <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($version->file_path) }}" target="_blank" rel="noopener" class="mt-2 inline-flex text-xs font-semibold text-ksm hover:underline">Buka berkas versi ini</a>
+                                    <a href="{{ route('media.show', ['path' => $version->file_path]) }}" target="_blank" rel="noopener" class="mt-2 inline-flex text-xs font-semibold text-ksm hover:underline">Buka berkas versi ini</a>
                                 @endif
                             </div>
                         </div>
@@ -188,7 +188,7 @@
                         <h3 class="text-xs font-semibold uppercase tracking-wide text-gray-400">Berkas Project</h3>
                         <ul class="mt-2 space-y-2">
                             @foreach ($files as $file)
-                                <li><a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($file->file_path) }}" target="_blank" rel="noopener" class="text-sm font-medium text-ksm hover:underline">{{ $file->file_name }}</a></li>
+                                <li><a href="{{ route('media.show', ['path' => $file->file_path]) }}" target="_blank" rel="noopener" class="text-sm font-medium text-ksm hover:underline">{{ $file->file_name }}</a></li>
                             @endforeach
                         </ul>
                     </div>

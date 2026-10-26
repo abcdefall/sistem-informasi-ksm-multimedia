@@ -694,7 +694,10 @@ class HomeController extends Controller
         ]);
 
         $revisionFile = $request->file('revision_file');
-        $revisionFilePath = $revisionFile?->store("projects/{$project->project_id}/revisions", 'public');
+        $revisionFilePath = $revisionFile?->store(
+            "projects/{$project->project_id}/revisions",
+            config('filesystems.project_media_disk', 'public'),
+        );
         $nextVersion = 'v1.'.(DB::table('project_versions')
             ->where('project_id', $project->project_id)
             ->count() + 1);
@@ -737,7 +740,7 @@ class HomeController extends Controller
             });
         } catch (\Throwable $exception) {
             if ($revisionFilePath) {
-                Storage::disk('public')->delete($revisionFilePath);
+                Storage::disk(config('filesystems.project_media_disk', 'public'))->delete($revisionFilePath);
             }
 
             throw $exception;
@@ -839,7 +842,10 @@ class HomeController extends Controller
         } while (Project::whereKey($projectId)->exists());
 
         $thumbnail = $request->file('thumbnail');
-        $thumbnailPath = $thumbnail?->store("projects/{$projectId}", 'public');
+        $thumbnailPath = $thumbnail?->store(
+            "projects/{$projectId}",
+            config('filesystems.project_media_disk', 'public'),
+        );
 
         try {
             DB::transaction(function () use ($validated, $members, $tools, $projectId, $thumbnail, $thumbnailPath, $submissionAction): void {
@@ -916,7 +922,7 @@ class HomeController extends Controller
             });
         } catch (\Throwable $exception) {
             if ($thumbnailPath) {
-                Storage::disk('public')->delete($thumbnailPath);
+                Storage::disk(config('filesystems.project_media_disk', 'public'))->delete($thumbnailPath);
             }
 
             throw $exception;
@@ -951,7 +957,10 @@ class HomeController extends Controller
         unset($validated['members'], $validated['tools'], $validated['thumbnail']);
 
         $thumbnail = $request->file('thumbnail');
-        $thumbnailPath = $thumbnail?->store("projects/{$project->project_id}", 'public');
+        $thumbnailPath = $thumbnail?->store(
+            "projects/{$project->project_id}",
+            config('filesystems.project_media_disk', 'public'),
+        );
 
         try {
             $oldThumbnailPath = DB::transaction(function () use ($projectId, $validated, $members, $tools, $thumbnail, $thumbnailPath, $submissionAction): ?string {
@@ -1045,14 +1054,14 @@ class HomeController extends Controller
             });
         } catch (\Throwable $exception) {
             if ($thumbnailPath) {
-                Storage::disk('public')->delete($thumbnailPath);
+                Storage::disk(config('filesystems.project_media_disk', 'public'))->delete($thumbnailPath);
             }
 
             throw $exception;
         }
 
         if ($oldThumbnailPath && $oldThumbnailPath !== $thumbnailPath) {
-            Storage::disk('public')->delete($oldThumbnailPath);
+            Storage::disk(config('filesystems.project_media_disk', 'public'))->delete($oldThumbnailPath);
         }
 
         return redirect()
