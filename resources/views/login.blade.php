@@ -110,12 +110,8 @@
                         @enderror
                     </div>
 
-                    <!-- Remember Me & Lupa Kata Sandi -->
+                    <!-- Lupa Kata Sandi -->
                     <div class="flex items-center justify-between text-xs pt-1">
-                        <label class="flex items-center gap-2 cursor-pointer text-gray-600">
-                            <input type="checkbox" name="remember" class="rounded border-gray-300 text-ksm focus:ring-ksm">
-                            <span>Ingat saya di perangkat ini</span>
-                        </label>
                         <a href="#" class="text-ksm font-semibold hover:underline">Lupa kata sandi?</a>
                     </div>
 
