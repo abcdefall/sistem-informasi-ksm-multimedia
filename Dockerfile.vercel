@@ -57,7 +57,6 @@ ENV APP_ENV=production \
     LOG_CHANNEL=stderr \
     SESSION_DRIVER=database \
     CACHE_STORE=file \
-    PROJECT_MEDIA_DISK=r2 \
     MYSQL_ATTR_SSL_CA=/etc/ssl/certs/ca-certificates.crt
 
 EXPOSE 80
