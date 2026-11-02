@@ -7,8 +7,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use RuntimeException;
-use Throwable;
 
 uses(RefreshDatabase::class);
 
@@ -378,7 +376,7 @@ it('hides a draft from participants who are only its members', function () {
         ->assertDontSee('Progres Project');
 });
 
-it('serves uploaded thumbnails only to related users until publication', function () {
+it('serves uploaded thumbnails to authenticated users and keeps draft thumbnails private', function () {
     $this->withoutVite();
     Storage::fake('public');
     draftWorkflowReferences();
@@ -410,6 +408,16 @@ it('serves uploaded thumbnails only to related users until publication', functio
         ->get($project->thumbnail_display_url)
         ->assertOk()
         ->assertHeader('Cache-Control', 'no-store, private');
+    $this->actingAs($unrelatedParticipant)
+        ->get($project->thumbnail_display_url)
+        ->assertOk();
+    $this->get(route('storage.media.show', ['path' => $project->thumbnail_url]))
+        ->assertOk();
+
+    $project->update(['status' => 'Draft']);
+    $this->actingAs($owner)
+        ->get($project->thumbnail_display_url)
+        ->assertOk();
     $this->actingAs($unrelatedParticipant)
         ->get($project->thumbnail_display_url)
         ->assertForbidden();

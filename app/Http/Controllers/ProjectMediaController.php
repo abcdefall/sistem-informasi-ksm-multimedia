@@ -30,18 +30,27 @@ class ProjectMediaController extends Controller
             && $project->thumbnail_url === $path;
         $user = $request->user();
 
+        $isThumbnail = $project->thumbnail_url === $path;
+        $isPublished = $project->status === 'Published';
+        $isSubmitted = $project->status !== 'Draft';
+        $isPrivileged = $user !== null
+            && in_array($user->role?->role_name, ['Mentor', 'Pengurus KSM'], true);
+        $isProjectMember = $user !== null && (
+            $project->created_by === $user->user_id
+            || $project->members()->where('user_id', $user->user_id)->exists()
+        );
+
         if ($user === null) {
             abort_unless($isPublishedThumbnail, 404);
-        } else {
-            $isPrivileged = in_array($user->role?->role_name, ['Mentor', 'Pengurus KSM'], true);
-            $isProjectMember = $project->created_by === $user->user_id
-                || $project->members()->where('user_id', $user->user_id)->exists();
-
-            abort_unless(
-                $project->status === 'Published' || $isPrivileged || $isProjectMember,
-                403,
-            );
         }
+
+        $canViewThumbnail = $isThumbnail
+            && ($isPublished || ($user !== null && ($isSubmitted || $isPrivileged || $isProjectMember)));
+        $canViewOtherFiles = ! $isThumbnail
+            && $user !== null
+            && ($isPublished || $isPrivileged || $isProjectMember);
+
+        abort_unless($canViewThumbnail || $canViewOtherFiles, 403);
 
         $response = Storage::disk($mediaDisk)->response($path);
         $response->headers->set(

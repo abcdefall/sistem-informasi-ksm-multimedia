@@ -59,10 +59,12 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => [
-                Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA', ''),
-                Mysql::ATTR_SSL_VERIFY_SERVER_CERT => true,
-            ],
+            'options' => extension_loaded('pdo_mysql') && env('MYSQL_ATTR_SSL_CA')
+                ? [
+                    Mysql::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                    Mysql::ATTR_SSL_VERIFY_SERVER_CERT => true,
+                ]
+                : [],
         ],
 
         'mariadb' => [

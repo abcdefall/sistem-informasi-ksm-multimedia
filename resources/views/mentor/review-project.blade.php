@@ -8,54 +8,12 @@
     @vite(['resources/css/landing.css', 'resources/css/dashboard.css'])
 </head>
 <body class="font-sans antialiased text-gray-800 flex flex-col min-h-screen">
-    <nav class="border-b border-gray-200 py-4 sticky top-0 z-40" style="background-color: var(--color-navbar-bg);">
-        <div class="mx-auto px-8 lg:px-12 flex items-center justify-between">
-            <a href="{{ route('landing') }}" class="flex items-center gap-3">
-                <img src="{{ asset('images/logo-ksm.png') }}" alt="Logo KSM Multimedia" class="w-8 h-8 object-contain">
-                <span class="font-bold text-xl tracking-tight text-ksm">KSM Multimedia</span>
-                <span class="bg-red-50 text-ksm text-xs font-bold px-2 py-1 rounded border border-red-100 ml-2">PORTAL MENTOR</span>
-            </a>
-            <div class="flex items-center gap-4">
-                <div class="flex items-center gap-3 text-right">
-                    <div class="w-10 h-10 rounded-full bg-ksm text-white flex items-center justify-center font-bold">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</div>
-                    <div class="hidden md:block">
-                        <p class="text-sm font-bold text-gray-800">Halo, {{ auth()->user()->name }}</p>
-                        <p class="text-xs text-gray-500">Mentor</p>
-                    </div>
-                </div>
-                <div class="h-8 w-px bg-gray-200 mx-2"></div>
-                <a href="{{ route('landing') }}" class="text-sm font-medium text-gray-600 hover:text-ksm flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                    Kembali ke Beranda
-                </a>
-            </div>
-        </div>
-    </nav>
+    @include('mentor.partials.topbar')
 
     <div class="participant-layout">
         <aside class="participant-sidebar">
             <div class="participant-sidebar-shell">
-                <nav class="sidebar-menu" aria-label="Navigasi mentor">
-                    <a href="{{ route('dashboard.mentor') }}" class="sidebar-link active" aria-current="page">
-                        <svg class="w-5 h-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 4h14a2 2 0 012 2v14l-4-2-5 2-5-2-4 2V6a2 2 0 012-2z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9h6M9 13h6"/></svg>
-                        <span>Antrian Review</span>
-                        @if ($waitingReviewCount + $revisionIncomingCount > 0)
-                            <span class="mentor-menu-count">{{ $waitingReviewCount + $revisionIncomingCount }}</span>
-                        @endif
-                    </a>
-                    <span class="sidebar-link" aria-disabled="true" title="Menu ini akan tersedia pada tahap berikutnya">
-                        <svg class="w-5 h-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
-                        <span>Riwayat Evaluasi</span>
-                    </span>
-                    <span class="sidebar-link" aria-disabled="true" title="Menu ini akan tersedia pada tahap berikutnya">
-                        <svg class="w-5 h-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3.5" y="5" width="17" height="16" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7.5 3v4M16.5 3v4M4 10h16"/></svg>
-                        <span>Jadwal Mentoring</span>
-                    </span>
-                    <span class="sidebar-link" aria-disabled="true" title="Menu ini akan tersedia pada tahap berikutnya">
-                        <svg class="w-5 h-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 21a8 8 0 0116 0"/></svg>
-                        <span>Profil</span>
-                    </span>
-                </nav>
+                @include('mentor.partials.sidebar-menu', ['activeMenu' => 'queue'])
 
                 <section class="mentor-rubric-card">
                     <div class="mb-2 flex items-center gap-2 text-ksm">
@@ -117,6 +75,11 @@
                         <p class="mt-1 text-sm font-bold text-slate-800">{{ $period?->period_name ?? 'Tidak tersedia' }}</p>
                     </div>
                 </div>
+                @if ($project->thumbnail_url)
+                    <div class="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                        <img src="{{ $project->thumbnail_display_url }}" alt="Thumbnail {{ $project->title }}" class="max-h-[24rem] w-full object-contain">
+                    </div>
+                @endif
                 <div class="border-t border-slate-100 pt-4">
                     <h3 class="text-sm font-bold text-slate-800">Deskripsi</h3>
                     <p class="mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-600">{{ $project->description ?: 'Belum ada deskripsi project.' }}</p>
@@ -236,10 +199,10 @@
             </div>
             <div class="flex gap-6 font-medium">
                 <a href="{{ route('landing') }}" class="text-gray-400 hover:text-white transition">Beranda</a>
-                <a href="{{ route('landing') }}#showcase" class="text-gray-400 hover:text-white transition">Showcase</a>
-                <a href="{{ route('landing') }}#mentoring" class="text-gray-400 hover:text-white transition">Mentoring</a>
-                <a href="#" class="text-gray-400 hover:text-white transition">Kebijakan Privasi</a>
-                <a href="#" class="text-gray-400 hover:text-white transition">Syarat &amp; Ketentuan</a>
+                <a href="{{ route('showcase') }}" class="text-gray-400 hover:text-white transition">Showcase</a>
+                <a href="{{ route('mentoring') }}" class="text-gray-400 hover:text-white transition">Mentoring</a>
+                <a href="{{ route('privacy') }}" class="text-gray-400 hover:text-white transition">Kebijakan Privasi</a>
+                <a href="{{ route('terms') }}" class="text-gray-400 hover:text-white transition">Syarat &amp; Ketentuan</a>
             </div>
         </div>
     </footer>
