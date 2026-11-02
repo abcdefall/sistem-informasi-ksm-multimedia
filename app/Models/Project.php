@@ -30,7 +30,7 @@ class Project extends Model
     {
         $thumbnail = $this->thumbnail_url;
 
-        if (! $thumbnail) {
+        if (! is_string($thumbnail) || $thumbnail === '' || $thumbnail === '0') {
             return null;
         }
 

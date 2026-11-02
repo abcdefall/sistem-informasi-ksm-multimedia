@@ -26,16 +26,29 @@ class ProjectMediaController extends Controller
         $mediaDisk = config('filesystems.project_media_disk', 'public');
         abort_unless(Storage::disk($mediaDisk)->exists($path), 404);
 
+        $isPublishedThumbnail = $project->status === 'Published'
+            && $project->thumbnail_url === $path;
         $user = $request->user();
-        $isPrivileged = in_array($user->role?->role_name, ['Mentor', 'Pengurus KSM'], true);
-        $isProjectMember = $project->created_by === $user->user_id
-            || $project->members()->where('user_id', $user->user_id)->exists();
 
-        abort_unless(
-            $project->status === 'Published' || $isPrivileged || $isProjectMember,
-            403,
+        if ($user === null) {
+            abort_unless($isPublishedThumbnail, 404);
+        } else {
+            $isPrivileged = in_array($user->role?->role_name, ['Mentor', 'Pengurus KSM'], true);
+            $isProjectMember = $project->created_by === $user->user_id
+                || $project->members()->where('user_id', $user->user_id)->exists();
+
+            abort_unless(
+                $project->status === 'Published' || $isPrivileged || $isProjectMember,
+                403,
+            );
+        }
+
+        $response = Storage::disk($mediaDisk)->response($path);
+        $response->headers->set(
+            'Cache-Control',
+            $isPublishedThumbnail ? 'public, max-age=3600' : 'private, no-store',
         );
 
-        return Storage::disk($mediaDisk)->response($path);
+        return $response;
     }
 }
