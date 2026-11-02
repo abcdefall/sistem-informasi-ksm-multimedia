@@ -9,12 +9,15 @@ use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class HomeController extends Controller
 {
@@ -694,10 +697,13 @@ class HomeController extends Controller
         ]);
 
         $revisionFile = $request->file('revision_file');
-        $revisionFilePath = $revisionFile?->store(
-            "projects/{$project->project_id}/revisions",
-            config('filesystems.project_media_disk', 'public'),
-        );
+        $revisionFilePath = $revisionFile
+            ? $this->storeProjectMedia(
+                $revisionFile,
+                "projects/{$project->project_id}/revisions",
+                'revision_file',
+            )
+            : null;
         $nextVersion = 'v1.'.(DB::table('project_versions')
             ->where('project_id', $project->project_id)
             ->count() + 1);
@@ -738,7 +744,7 @@ class HomeController extends Controller
                     ]);
                 }
             });
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             if ($revisionFilePath) {
                 Storage::disk(config('filesystems.project_media_disk', 'public'))->delete($revisionFilePath);
             }
@@ -840,12 +846,10 @@ class HomeController extends Controller
         do {
             $projectId = 'PROJ-'.Str::upper(Str::random(15));
         } while (Project::whereKey($projectId)->exists());
-
         $thumbnail = $request->file('thumbnail');
-        $thumbnailPath = $thumbnail?->store(
-            "projects/{$projectId}",
-            config('filesystems.project_media_disk', 'public'),
-        );
+        $thumbnailPath = $thumbnail
+            ? $this->storeProjectMedia($thumbnail, "projects/{$projectId}", 'thumbnail')
+            : null;
 
         try {
             DB::transaction(function () use ($validated, $members, $tools, $projectId, $thumbnail, $thumbnailPath, $submissionAction): void {
@@ -920,7 +924,7 @@ class HomeController extends Controller
                     ]);
                 }
             });
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             if ($thumbnailPath) {
                 Storage::disk(config('filesystems.project_media_disk', 'public'))->delete($thumbnailPath);
             }
@@ -955,12 +959,10 @@ class HomeController extends Controller
         $members = $validated['members'] ?? [];
         $tools = array_map('trim', $validated['tools'] ?? []);
         unset($validated['members'], $validated['tools'], $validated['thumbnail']);
-
         $thumbnail = $request->file('thumbnail');
-        $thumbnailPath = $thumbnail?->store(
-            "projects/{$project->project_id}",
-            config('filesystems.project_media_disk', 'public'),
-        );
+        $thumbnailPath = $thumbnail
+            ? $this->storeProjectMedia($thumbnail, "projects/{$project->project_id}", 'thumbnail')
+            : null;
 
         try {
             $oldThumbnailPath = DB::transaction(function () use ($projectId, $validated, $members, $tools, $thumbnail, $thumbnailPath, $submissionAction): ?string {
@@ -1052,7 +1054,7 @@ class HomeController extends Controller
 
                 return $oldThumbnailPath;
             });
-        } catch (\Throwable $exception) {
+        } catch (Throwable $exception) {
             if ($thumbnailPath) {
                 Storage::disk(config('filesystems.project_media_disk', 'public'))->delete($thumbnailPath);
             }
@@ -1069,6 +1071,41 @@ class HomeController extends Controller
             ->with('status', $submissionAction === 'Draft'
             ? 'Draft project berhasil disimpan.'
             : 'Project berhasil diajukan.');
+    }
+
+    private function storeProjectMedia(UploadedFile $file, string $directory, string $field): string
+    {
+        $disk = config('filesystems.project_media_disk', 'public');
+        $expectedPath = trim($directory, '/').'/'.$file->hashName();
+
+        try {
+            $path = $file->store($directory, $disk);
+
+            if (! is_string($path) || ! str_starts_with($path, 'projects/') || trim($path) === '') {
+                throw new \RuntimeException('The uploaded file was not stored at a valid project path.');
+            }
+
+            return $path;
+        } catch (Throwable $exception) {
+            Log::error($exception->getMessage());
+
+            $pathsToDelete = [$expectedPath];
+            if (isset($path) && is_string($path) && str_starts_with($path, 'projects/') && $path !== $expectedPath) {
+                $pathsToDelete[] = $path;
+            }
+
+            foreach ($pathsToDelete as $pathToDelete) {
+                try {
+                    Storage::disk($disk)->delete($pathToDelete);
+                } catch (Throwable $cleanupException) {
+                    Log::error($cleanupException->getMessage());
+                }
+            }
+
+            throw ValidationException::withMessages([
+                $field => 'Gagal menyimpan file, coba lagi.',
+            ]);
+        }
     }
 
     private function validateProject(Request $request, bool $hasExistingThumbnail = false, ?string $projectId = null): array

@@ -15,9 +15,10 @@ Route::middleware('guest')->group(function () {
         ->name('login.submit');
 });
 
+Route::get('/media/{path}', [ProjectMediaController::class, 'show'])->where('path', '.*')->name('media.show');
+
 // Semua yang sudah login
 Route::middleware('auth')->group(function () {
-    Route::get('/media/{path}', [ProjectMediaController::class, 'show'])->where('path', '.*')->name('media.show');
     Route::get('/landing', [HomeController::class, 'landingRole'])->name('landing');
     Route::get('/dashboard/peserta', [HomeController::class, 'dashboardPeserta'])->name('dashboard.peserta');
     Route::get('/dashboard/mentor', [HomeController::class, 'dashboardMentor'])->name('dashboard.mentor');
