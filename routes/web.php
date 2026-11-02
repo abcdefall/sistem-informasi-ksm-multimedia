@@ -27,6 +27,23 @@ Route::middleware('guest')->group(function () {
 
 // Semua yang sudah login
 Route::middleware(['auth', 'active.user'])->group(function () {
+    // Temporary storage diagnostics
+    Route::get('/_diag/storage', function () {
+        return response()->json([
+            'media_disk' => config('filesystems.project_media_disk', 'public'),
+            's3_config' => [
+                'key_present' => filled(config('filesystems.disks.s3.key')),
+                'secret_present' => filled(config('filesystems.disks.s3.secret')),
+                'region_present' => filled(config('filesystems.disks.s3.region')),
+                'bucket_present' => filled(config('filesystems.disks.s3.bucket')),
+                'endpoint_present' => filled(config('filesystems.disks.s3.endpoint')),
+            ],
+            'php_environment' => [
+                'key_present' => (bool) getenv('AWS_ACCESS_KEY_ID'),
+                'secret_present' => (bool) getenv('AWS_SECRET_ACCESS_KEY'),
+            ],
+        ]);
+    })->name('diagnostics.storage');
     Route::get('/landing', [HomeController::class, 'landingRole'])->name('landing');
     Route::get('/dashboard/peserta', [HomeController::class, 'dashboardPeserta'])->name('dashboard.peserta');
     Route::get('/dashboard/profile', [HomeController::class, 'profile'])->name('dashboard.profile');

@@ -5,7 +5,10 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
+use Throwable;
 
 uses(RefreshDatabase::class);
 
@@ -83,6 +86,24 @@ function homeControllerTestPngUpload(string $fileName = 'cover.png'): UploadedFi
     $contents = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC');
 
     return UploadedFile::fake()->createWithContent($fileName, $contents);
+}
+
+function homeControllerTestFailingMediaDisk(Throwable|string $failure): void
+{
+    $disk = Mockery::mock();
+    $putFile = $disk->shouldReceive('putFileAs')->once();
+
+    if ($failure instanceof Throwable) {
+        $putFile->andThrow($failure);
+    } else {
+        $putFile->andReturn($failure);
+    }
+
+    $disk->shouldReceive('delete')
+        ->once()
+        ->withArgs(fn (string $path): bool => str_starts_with($path, 'projects/'))
+        ->andReturnTrue();
+    Storage::shouldReceive('disk')->with('public')->twice()->andReturn($disk);
 }
 
 it('creates one draft and offers a link to continue it', function () {
@@ -387,7 +408,8 @@ it('serves uploaded thumbnails to authenticated users and keeps draft thumbnails
 
     $this->actingAs($owner)
         ->get($project->thumbnail_display_url)
-        ->assertOk();
+        ->assertOk()
+        ->assertHeader('Cache-Control', 'no-store, private');
     $this->actingAs($unrelatedParticipant)
         ->get($project->thumbnail_display_url)
         ->assertOk();
@@ -403,7 +425,110 @@ it('serves uploaded thumbnails to authenticated users and keeps draft thumbnails
         ->assertForbidden();
 
     $project->update(['status' => 'Published']);
-    $this->get($project->thumbnail_display_url)->assertOk();
+    $this->get($project->thumbnail_display_url)
+        ->assertOk()
+        ->assertHeader('Cache-Control', 'max-age=3600, public');
+
+    $nonThumbnailPath = "projects/{$project->project_id}/supporting-file.png";
+    Storage::disk('public')->put($nonThumbnailPath, 'supporting file');
+    $this->actingAs($unrelatedParticipant)
+        ->get(route('media.show', ['path' => $nonThumbnailPath]))
+        ->assertOk()
+        ->assertHeader('Cache-Control', 'no-store, private');
+});
+
+it('allows guests to access only thumbnails of published projects', function () {
+    Storage::fake('public');
+    draftWorkflowReferences();
+    $publishedOwner = draftWorkflowUser('USER-PESERTA-16', 'Pemilik Published');
+    $draftOwner = draftWorkflowUser('USER-PESERTA-17', 'Pemilik Draft');
+    $publishedPath = 'projects/PROJ-PESERTA-16/cover.png';
+    $draftPath = 'projects/PROJ-PESERTA-17/cover.png';
+    $otherFilePath = 'projects/PROJ-PESERTA-16/supporting-file.png';
+    draftWorkflowProject($publishedOwner, 'Published', $publishedPath);
+    draftWorkflowProject($draftOwner, 'Draft', $draftPath);
+    Storage::disk('public')->put($publishedPath, 'published thumbnail');
+    Storage::disk('public')->put($draftPath, 'draft thumbnail');
+    Storage::disk('public')->put($otherFilePath, 'not a thumbnail');
+
+    $this->get(route('media.show', ['path' => $publishedPath]))
+        ->assertOk()
+        ->assertHeader('Cache-Control', 'max-age=3600, public');
+    $this->get(route('media.show', ['path' => $draftPath]))->assertNotFound();
+    $this->get(route('media.show', ['path' => $otherFilePath]))->assertNotFound();
+});
+
+it('treats a zero thumbnail value as missing', function () {
+    foreach (['0', 0, false, ''] as $thumbnail) {
+        expect(Project::make(['thumbnail_url' => $thumbnail])->thumbnail_display_url)->toBeNull();
+    }
+});
+
+it('returns a thumbnail validation error when storing a new project file fails', function () {
+    draftWorkflowReferences();
+    $participant = draftWorkflowUser('USER-PESERTA-18', 'Peserta Upload Gagal');
+    homeControllerTestFailingMediaDisk(false);
+    Log::shouldReceive('error')
+        ->once()
+        ->with('The uploaded file was not stored at a valid project path.');
+
+    $this->actingAs($participant)
+        ->post(route('dashboard.peserta.project.store'), [
+            'submission_action' => 'Submitted',
+            'title' => 'Project Upload Gagal',
+            'field_id' => 'FIELD-TEST',
+            'period_id' => 'PERIOD-TEST',
+            'description' => str_repeat('Project multimedia ', 150),
+            'project_link' => 'https://example.test/project',
+            'members' => [
+                ['user_id' => $participant->user_id, 'member_role' => 'Project Lead'],
+            ],
+            'tools' => ['Laravel'],
+            'thumbnail' => homeControllerTestPngUpload(),
+        ])
+        ->assertSessionHasErrors(['thumbnail' => 'Gagal menyimpan file, coba lagi.']);
+
+    $this->assertDatabaseCount('projects', 0);
+    $this->assertDatabaseCount('project_files', 0);
+});
+
+it('returns a thumbnail validation error when replacing a draft thumbnail fails', function () {
+    draftWorkflowReferences();
+    $participant = draftWorkflowUser('USER-PESERTA-19', 'Peserta Update Gagal');
+    $project = draftWorkflowProject($participant, 'Draft', 'projects/old-cover.png');
+    homeControllerTestFailingMediaDisk(new RuntimeException('storage upload failed'));
+    Log::shouldReceive('error')->once()->with('storage upload failed');
+
+    $this->actingAs($participant)
+        ->put(route('dashboard.peserta.project.update', $project->project_id), [
+            ...draftWorkflowData(),
+            'thumbnail' => homeControllerTestPngUpload('new-cover.png'),
+        ])
+        ->assertSessionHasErrors(['thumbnail' => 'Gagal menyimpan file, coba lagi.']);
+
+    expect($project->fresh()->thumbnail_url)->toBe('projects/old-cover.png');
+    $this->assertDatabaseCount('project_files', 0);
+});
+
+it('returns a revision file validation error when storing a resubmission fails', function () {
+    draftWorkflowReferences();
+    $participant = draftWorkflowUser('USER-PESERTA-20', 'Peserta Revisi Gagal');
+    $project = draftWorkflowProject($participant, 'Revision Required');
+    homeControllerTestFailingMediaDisk(new RuntimeException('revision upload failed'));
+    Log::shouldReceive('error')->once()->with('revision upload failed');
+
+    $this->actingAs($participant)
+        ->post(route('dashboard.peserta.project.resubmit', $project->project_id), [
+            'revision_notes' => 'Perbaikan project.',
+            'project_link' => 'https://example.test/project',
+            'revision_file' => homeControllerTestPngUpload('revision.png'),
+            'integrity' => '1',
+        ])
+        ->assertSessionHasErrors(['revision_file' => 'Gagal menyimpan file, coba lagi.']);
+
+    expect($project->fresh()->status)->toBe('Revision Required');
+    $this->assertDatabaseCount('project_versions', 0);
+    $this->assertDatabaseCount('project_files', 0);
 });
 
 it('marks each workflow status at the correct progress step', function () {

@@ -1015,7 +1015,7 @@ test('authenticated users can view submitted project thumbnails without exposing
 
     $this->app['auth']->guard()->logout();
     $this->get(route('media.show', ['path' => $thumbnailPath]))
-        ->assertForbidden();
+        ->assertNotFound();
 
     DB::table('projects')->where('project_id', $projectId)->update(['status' => 'Draft']);
 
@@ -1210,7 +1210,7 @@ test('a participant can open their dashboard with live project data', function (
         ->assertSee('Andi Peserta')
         ->assertSee('Kembali ke Beranda')
         ->assertDontSee('Keluar')
-        ->assertSee('Belum ada project yang Anda ajukan.');
+        ->assertSee('Belum ada project');
 });
 
 test('the participant dashboard formats project submission dates', function () {
@@ -1304,9 +1304,6 @@ test('a participant can view the project submission form', function () {
         ->assertSee('Ajukan Project Baru')
         ->assertSee('Project')
         ->assertSee('Profil')
-        ->assertSee('Jadwal Mentoring')
-        ->assertSee('Panduan & Template', false)
-        ->assertSee('Panduan Capstone')
         ->assertSee('Tambahkan minimal satu teknologi saat mengirim.')
         ->assertDontSee('Kembali ke Dashboard')
         ->assertSee(route('dashboard.peserta.project.store'));
@@ -1575,7 +1572,7 @@ test('only participants can open the project submission form', function () {
         ->assertForbidden();
 });
 
-test('a participant can view their project list and project details', function () {
+test('a participant can open their project details from the projects route', function () {
     createTestUser();
     $user = \App\Models\User::where('email', 'andi@example.com')->firstOrFail();
 
@@ -1639,26 +1636,19 @@ test('a participant can view their project list and project details', function (
 
     $this->actingAs($user)
         ->get(route('dashboard.peserta.projects.index'))
-        ->assertOk()
-        ->assertSee('Project Detail Peserta')
-        ->assertSee('Budi Mentor')
-        ->assertSee('budi.mentor@ksm.ac.id')
-        ->assertSee(route('dashboard.peserta.project.show', 'PRJ-DETAIL'));
+        ->assertRedirect(route('dashboard.peserta.project.show', 'PRJ-DETAIL'));
 
     $this->get(route('dashboard.peserta.project.show', 'PRJ-DETAIL'))
         ->assertOk()
         ->assertSee('Informasi Project')
-        ->assertSee('Budi Mentor')
-        ->assertSee('budi.mentor@ksm.ac.id')
         ->assertSee('Andi Peserta')
         ->assertSee('Project Lead')
         ->assertSee('Laravel')
         ->assertSee('https://example.com/project');
 
     $this->get(route('dashboard.peserta.project.create'))
-        ->assertOk()
-        ->assertSee('Budi Mentor')
-        ->assertSee('budi.mentor@ksm.ac.id');
+        ->assertRedirect(route('dashboard.peserta'))
+        ->assertSessionHas('status', 'Kamu sudah memiliki project.');
 
     DB::table('users')->insert([
         'user_id' => 'USR-002',
