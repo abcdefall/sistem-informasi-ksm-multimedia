@@ -15,7 +15,7 @@ Route::get('/media/{path}', [ProjectMediaController::class, 'show'])
     ->where('path', '.*')
     ->middleware('active.user')
     ->name('media.show');
-Route::get('/storage/{path}', [ProjectMediaController::class, 'show'])
+Route::get('/storage/media/{path}', [ProjectMediaController::class, 'show'])
     ->where('path', '.*')
     ->middleware('active.user')
     ->name('storage.media.show');
@@ -42,8 +42,8 @@ Route::middleware(['auth', 'active.user'])->group(function () {
                 'endpoint_present' => filled(config('filesystems.disks.s3.endpoint')),
             ],
             'php_environment' => [
-                'key_present' => (bool) getenv('AWS_ACCESS_KEY_ID'),
-                'secret_present' => (bool) getenv('AWS_SECRET_ACCESS_KEY'),
+                'key_present' => (bool) (getenv('SUPABASE_S3_ACCESS_KEY_ID') ?: getenv('AWS_ACCESS_KEY_ID')),
+                'secret_present' => (bool) (getenv('SUPABASE_S3_SECRET_ACCESS_KEY') ?: getenv('AWS_SECRET_ACCESS_KEY')),
             ],
         ]);
     })->name('diagnostics.storage');
