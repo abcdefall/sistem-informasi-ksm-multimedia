@@ -149,8 +149,8 @@
                                 <strong class="block text-xs text-slate-800">Tampilkan di Beranda Utama</strong>
                                 <span class="mt-1 block text-[0.65rem] text-slate-500">Sematkan sebagai capstone pilihan bulan ini.</span>
                             </span>
-                            <input form="publication-form" type="checkbox" name="showcase" value="1" class="peer sr-only" @checked(old('showcase', $project->is_featured)) @disabled($project->status === 'Published')>
-                            <span class="relative h-6 w-11 shrink-0 rounded-full bg-slate-300 transition peer-checked:bg-ksm peer-disabled:opacity-60 after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5"></span>
+                            <input form="publication-form" type="checkbox" name="showcase" value="1" class="peer sr-only showcase-visibility-toggle" @checked(old('showcase', $project->is_featured)) @disabled($project->status === 'Published')>
+                            <span class="showcase-visibility-track relative h-6 w-11 shrink-0 rounded-full bg-slate-300 transition after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition"></span>
                         </label>
                         <p class="mt-3 text-[0.65rem] font-semibold text-slate-600">Tag kurasi publik</p>
                         <div class="mt-2 flex flex-wrap gap-1.5">

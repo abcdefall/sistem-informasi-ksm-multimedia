@@ -85,7 +85,9 @@
                                         <span>{{ $project->period->period_name }}</span>
                                     @endif
                                 </div>
-                                <h2 title="{{ $project->title }}">{{ $project->title }}</h2>
+                                <h2 title="{{ $project->title }}">
+                                    <a href="{{ route('showcase.show', $project->project_id) }}">{{ $project->title }}</a>
+                                </h2>
                                 <p class="showcase-project-description">
                                     {{ $project->description ?: 'Karya capstone mahasiswa KSM Multimedia.' }}
                                 </p>
@@ -95,11 +97,9 @@
                                         <span>{{ $projectMembers->isNotEmpty() ? $projectMembers->take(2)->implode(', ') : $creatorName }}@if($projectMembers->count() > 2) +{{ $projectMembers->count() - 2 }} lainnya @endif</span>
                                         <small>{{ $project->mentoringField?->field_name ?? 'KSM Multimedia' }}</small>
                                     </div>
-                                    @if($project->project_link)
-                                        <a href="{{ $project->project_link }}" target="_blank" rel="noopener noreferrer" class="showcase-project-link" aria-label="Buka karya {{ $project->title }}">
-                                            <span aria-hidden="true">&rarr;</span>
-                                        </a>
-                                    @endif
+                                    <a href="{{ route('showcase.show', $project->project_id) }}" class="showcase-project-link" aria-label="Lihat detail {{ $project->title }}">
+                                        Detail <span aria-hidden="true">&rarr;</span>
+                                    </a>
                                 </div>
                             </div>
                         </article>

@@ -122,6 +122,14 @@ test('the showcase page lists only published projects and filters by search and 
         'updated_at' => $timestamp,
     ]);
 
+    DB::table('project_tools')->insert([
+        'tool_id' => 'TOOL-TEST',
+        'project_id' => 'PRJ-PUBLISHED',
+        'tool_name' => 'Three.js',
+        'created_at' => $timestamp,
+        'updated_at' => $timestamp,
+    ]);
+
     $this->assertGuest();
 
     $this->get(route('showcase', ['q' => 'Nusantara', 'field' => 'FLD-WEB']))
@@ -129,8 +137,22 @@ test('the showcase page lists only published projects and filters by search and 
         ->assertSee('Masuk')
         ->assertDontSee('Keluar')
         ->assertSee('Nusantara Digital Archive')
+        ->assertSee(route('showcase.show', 'PRJ-PUBLISHED'))
         ->assertSee('Semester Ganjil 2026')
         ->assertDontSee('Nusantara Draft Project');
+
+    $this->get(route('showcase.show', 'PRJ-PUBLISHED'))
+        ->assertOk()
+        ->assertSee('Nusantara Digital Archive')
+        ->assertSee('Arsip digital budaya Nusantara.')
+        ->assertSee('Rizky Team')
+        ->assertSee('Designer')
+        ->assertSee('Three.js')
+        ->assertSee('Buka Demo / Repository')
+        ->assertSee('https://example.test/archive')
+        ->assertDontSee('Keluar');
+
+    $this->get(route('showcase.show', 'PRJ-DRAFT'))->assertNotFound();
 
     $this->get(route('showcase', ['q' => 'Rizky Team', 'field' => 'FLD-WEB']))
         ->assertOk()

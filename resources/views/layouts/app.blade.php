@@ -10,8 +10,12 @@
 
     @if(request()->routeIs('mentoring'))
         @vite(['resources/css/mentoring.css'])
-    @elseif(request()->routeIs('showcase'))
+    @elseif(request()->routeIs('showcase', 'showcase.show'))
         @vite(['resources/css/showcase.css'])
+    @elseif(request()->routeIs('privacy'))
+        @vite(['resources/css/landing.css', 'resources/css/privacy.css'])
+    @elseif(request()->routeIs('terms'))
+        @vite(['resources/css/landing.css', 'resources/css/terms.css'])
     @else
         @vite(['resources/css/landing.css'])
     @endif
@@ -28,7 +32,7 @@
             </a>
             <div class="hidden md:flex items-center gap-8">
                 <a href="{{ $authenticatedRole ? route('landing') : route('home') }}" class="nav-link {{ request()->routeIs('home', 'landing') ? 'active' : '' }}">Beranda</a>
-                <a href="{{ route('showcase') }}" class="nav-link {{ request()->routeIs('showcase') ? 'active' : '' }}">Showcase</a>
+                <a href="{{ route('showcase') }}" class="nav-link {{ request()->routeIs('showcase', 'showcase.show') ? 'active' : '' }}">Showcase</a>
                 <a href="{{ route('mentoring') }}" class="nav-link {{ request()->routeIs('mentoring') ? 'active' : '' }}">Mentoring</a>
             </div>
             <div class="flex items-center gap-3">
@@ -69,8 +73,8 @@
                 <a href="{{ $authenticatedRole ? route('landing') : route('home') }}" class="text-gray-400 hover:text-white transition">Beranda</a>
                 <a href="{{ route('showcase') }}" class="text-gray-400 hover:text-white transition">Showcase</a>
                 <a href="{{ route('mentoring') }}" class="text-gray-400 hover:text-white transition">Mentoring</a>
-                <a href="#" class="text-gray-400 hover:text-white transition">Kebijakan Privasi</a>
-                <a href="#" class="text-gray-400 hover:text-white transition">Syarat & Ketentuan</a>
+                <a href="{{ route('privacy') }}" class="text-gray-400 hover:text-white transition">Kebijakan Privasi</a>
+                <a href="{{ route('terms') }}" class="text-gray-400 hover:text-white transition">Syarat & Ketentuan</a>
             </div>
         </div>
     </footer>

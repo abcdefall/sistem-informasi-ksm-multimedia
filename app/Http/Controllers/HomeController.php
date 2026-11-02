@@ -168,6 +168,41 @@ class HomeController extends Controller
             ->header('Expires', '0');
     }
 
+    public function showcaseProject(string $projectId)
+    {
+        $project = Project::query()
+            ->with(['mentoringField', 'period', 'creator'])
+            ->where('status', 'Published')
+            ->findOrFail($projectId);
+
+        $members = DB::table('project_members')
+            ->join('users', 'users.user_id', '=', 'project_members.user_id')
+            ->where('project_members.project_id', $project->project_id)
+            ->orderBy('users.name')
+            ->get(['users.name', 'project_members.member_role']);
+
+        $tools = DB::table('project_tools')
+            ->where('project_id', $project->project_id)
+            ->orderBy('tool_name')
+            ->pluck('tool_name');
+
+        $projectUrl = filter_var($project->project_link, FILTER_VALIDATE_URL)
+            && in_array(parse_url($project->project_link, PHP_URL_SCHEME), ['http', 'https'], true)
+                ? $project->project_link
+                : null;
+
+        return response()
+            ->view('showcase-detail', [
+                'project' => $project,
+                'members' => $members,
+                'tools' => $tools,
+                'projectUrl' => $projectUrl,
+            ])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, private')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
+    }
+
     public function landingRole()
     {
         $roleName = auth()->user()->role?->role_name;

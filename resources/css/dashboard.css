@@ -292,6 +292,23 @@ body {
     padding: 1.25rem;
 }
 
+.showcase-visibility-toggle:checked + .showcase-visibility-track {
+    background-color: var(--color-ksm);
+}
+
+.showcase-visibility-toggle:checked + .showcase-visibility-track::after {
+    transform: translateX(1.25rem);
+}
+
+.showcase-visibility-toggle:focus-visible + .showcase-visibility-track {
+    outline: 2px solid var(--color-ksm);
+    outline-offset: 2px;
+}
+
+.showcase-visibility-toggle:disabled + .showcase-visibility-track {
+    opacity: 0.6;
+}
+
 .mentor-review-section-title {
     display: flex;
     align-items: center;

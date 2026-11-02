@@ -292,6 +292,15 @@
     white-space: nowrap;
 }
 
+.showcase-project-content h2 a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.showcase-project-content h2 a:hover {
+    color: var(--color-ksm);
+}
+
 .showcase-project-description {
     display: -webkit-box;
     min-height: 2.5rem;
@@ -351,21 +360,287 @@
 }
 
 .showcase-project-link {
-    display: flex;
-    width: 1.75rem;
-    height: 1.75rem;
-    flex: 0 0 1.75rem;
+    display: inline-flex;
+    flex: 0 0 auto;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
-    color: #8b6f70;
-    font-size: 1rem;
+    gap: 0.25rem;
+    padding: 0.35rem 0.55rem;
+    border: 1px solid #eadfe2;
+    border-radius: 0.4rem;
+    color: var(--color-ksm);
+    font-size: 0.625rem;
+    font-weight: 650;
     text-decoration: none;
 }
 
 .showcase-project-link:hover {
     background: #f8eeee;
+}
+
+.showcase-detail-page {
+    min-height: calc(100vh - 9rem);
+    padding: 1.75rem 0 3rem;
+    background: var(--color-body-bg);
+}
+
+.showcase-detail-container {
+    width: min(100% - 2rem, 70rem);
+    margin: 0 auto;
+}
+
+.showcase-detail-breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 1.25rem;
+    color: #647086;
+    font-size: 0.6875rem;
+}
+
+.showcase-detail-breadcrumb a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.showcase-detail-breadcrumb a:hover,
+.showcase-detail-breadcrumb-current {
     color: var(--color-ksm);
+    font-weight: 650;
+}
+
+.showcase-detail-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 1.25rem;
+}
+
+.showcase-detail-main,
+.showcase-detail-summary {
+    border: 1px solid #eee5e6;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 4px 14px rgba(31, 41, 55, 0.04);
+}
+
+.showcase-detail-main {
+    min-width: 0;
+    padding: 1rem;
+}
+
+.showcase-detail-image {
+    overflow: hidden;
+    aspect-ratio: 16 / 9;
+    border-radius: 0.65rem;
+    background: #e9edf4;
+}
+
+.showcase-detail-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.showcase-detail-image-placeholder {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    place-items: center;
+    color: #667085;
+    font-size: 0.8rem;
+}
+
+.showcase-detail-project-meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: 0.55rem;
+    background: #f0f3fb;
+    color: #475467;
+    font-size: 0.65rem;
+}
+
+.showcase-detail-project-id {
+    color: var(--color-ksm);
+    font-weight: 650;
+}
+
+.showcase-detail-description {
+    margin-top: 1.1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f1eeee;
+}
+
+.showcase-detail-description h2 {
+    margin-bottom: 0.55rem;
+    color: #142238;
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.showcase-detail-description h2::before {
+    margin-right: 0.4rem;
+    color: var(--color-ksm);
+    content: "▤";
+}
+
+.showcase-detail-description div {
+    color: #645657;
+    font-size: 0.78rem;
+    line-height: 1.75;
+    white-space: pre-line;
+}
+
+.showcase-detail-summary {
+    padding: 1rem;
+}
+
+.showcase-detail-badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.4rem;
+}
+
+.showcase-detail-category,
+.showcase-detail-verified {
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.6rem;
+    font-weight: 650;
+}
+
+.showcase-detail-category {
+    background: #fde4e4;
+    color: #7f1028;
+}
+
+.showcase-detail-verified {
+    background: #eef2ff;
+    color: #475467;
+}
+
+.showcase-detail-summary h1 {
+    margin: 0.6rem 0 0.9rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid #f1eeee;
+    color: #142238;
+    font-size: 1.25rem;
+    font-weight: 750;
+    line-height: 1.3;
+}
+
+.showcase-detail-info {
+    margin-top: 0.9rem;
+}
+
+.showcase-detail-info h2 {
+    margin-bottom: 0.4rem;
+    color: #667085;
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.showcase-detail-info-value {
+    color: #142238;
+    font-size: 0.75rem;
+}
+
+.showcase-detail-team {
+    display: grid;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.showcase-detail-team li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem;
+    border-radius: 0.5rem;
+    background: #f0f3fb;
+}
+
+.showcase-detail-avatar {
+    display: grid;
+    width: 1.7rem;
+    height: 1.7rem;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 50%;
+    background: #f4dfe5;
+    color: var(--color-ksm);
+    font-size: 0.55rem;
+    font-weight: 700;
+}
+
+.showcase-detail-team li > span:last-child {
+    display: grid;
+    gap: 0.1rem;
+    color: #344054;
+    font-size: 0.6875rem;
+}
+
+.showcase-detail-team small {
+    color: #667085;
+    font-size: 0.6rem;
+}
+
+.showcase-detail-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.showcase-detail-tools li {
+    padding: 0.3rem 0.55rem;
+    border-radius: 9999px;
+    background: #e9edff;
+    color: #344054;
+    font-size: 0.625rem;
+}
+
+.showcase-detail-primary-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    margin-top: 1.1rem;
+    padding: 0.7rem 0.8rem;
+    border-radius: 0.45rem;
+    background: #80000f;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 650;
+    text-align: center;
+    text-decoration: none;
+}
+
+.showcase-detail-primary-link:hover {
+    background: var(--color-ksm-hover);
+}
+
+.showcase-detail-notice {
+    margin-top: 0.75rem;
+    padding: 0.6rem;
+    border-radius: 0.45rem;
+    background: #eef2ff;
+    color: #667085;
+    font-size: 0.625rem;
+    line-height: 1.5;
+    text-align: center;
 }
 
 .showcase-empty {
@@ -448,6 +723,22 @@
 @media (min-width: 640px) {
     .showcase-container {
         width: min(100% - 4rem, 70rem);
+    }
+
+    @media (min-width: 768px) {
+        .showcase-detail-container {
+            width: min(100% - 3rem, 70rem);
+        }
+
+        .showcase-detail-grid {
+            grid-template-columns: minmax(0, 1.8fr) minmax(14rem, 0.9fr);
+            gap: 1.25rem;
+        }
+
+        .showcase-detail-main,
+        .showcase-detail-summary {
+            padding: 1.15rem;
+        }
     }
 
     .showcase-grid {

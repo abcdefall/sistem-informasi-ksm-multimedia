@@ -402,7 +402,9 @@ test('administrator approves, requests publication, and records each publication
         ->assertSee('Checklist Standar Etalase')
         ->assertSee('Catatan Rekomendasi Mentor')
         ->assertSee('Project layak direkomendasikan ke showcase.')
-        ->assertSee('Berikan Approval Resmi Pengurus');
+        ->assertSee('Berikan Approval Resmi Pengurus')
+        ->assertSee('showcase-visibility-toggle')
+        ->assertSee('showcase-visibility-track');
 
     $this->post(route('dashboard.pengurus.approval.store', $projectId), [
         'action' => 'approve',

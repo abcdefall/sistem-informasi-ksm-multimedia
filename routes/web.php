@@ -7,7 +7,10 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/showcase', [HomeController::class, 'showcase'])->name('showcase');
+Route::get('/showcase/{project}', [HomeController::class, 'showcaseProject'])->name('showcase.show');
 Route::get('/mentoring', [HomeController::class, 'mentoring'])->name('mentoring');
+Route::view('/kebijakan-privasi', 'privacy')->name('privacy');
+Route::view('/syarat-ketentuan', 'terms')->name('terms');
 Route::get('/media/{path}', [ProjectMediaController::class, 'show'])
     ->where('path', '.*')
     ->middleware('active.user')
