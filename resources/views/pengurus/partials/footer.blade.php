@@ -6,10 +6,10 @@
         </div>
         <div class="flex gap-6 font-medium">
             <a href="{{ route('landing') }}" class="text-gray-400 hover:text-white transition">Beranda</a>
-            <a href="{{ route('landing') }}#showcase" class="text-gray-400 hover:text-white transition">Showcase</a>
-            <a href="{{ route('landing') }}#mentoring" class="text-gray-400 hover:text-white transition">Mentoring</a>
-            <a href="#" class="text-gray-400 hover:text-white transition">Kebijakan Privasi</a>
-            <a href="#" class="text-gray-400 hover:text-white transition">Syarat &amp; Ketentuan</a>
+            <a href="{{ route('showcase') }}" class="text-gray-400 hover:text-white transition">Showcase</a>
+            <a href="{{ route('mentoring') }}" class="text-gray-400 hover:text-white transition">Mentoring</a>
+            <a href="{{ route('privacy') }}" class="text-gray-400 hover:text-white transition">Kebijakan Privasi</a>
+            <a href="{{ route('terms') }}" class="text-gray-400 hover:text-white transition">Syarat &amp; Ketentuan</a>
         </div>
     </div>
 </footer>

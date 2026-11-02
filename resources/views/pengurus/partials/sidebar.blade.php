@@ -16,14 +16,17 @@
                 <svg class="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
                 <span>Log Audit Trail</span>
             </a>
-            <span class="sidebar-link" aria-disabled="true" title="Pengelolaan pengguna belum tersedia">
+            <a href="{{ route('dashboard.pengurus.users') }}" class="sidebar-link {{ $activeMenu === 'users' ? 'active' : '' }}" @if ($activeMenu === 'users') aria-current="page" @endif>
                 <svg class="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="8" r="3" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 20v-1a6 6 0 0112 0v1M16 11a3 3 0 100-6m2 9a5 5 0 013 4v2"/></svg>
                 <span>Kelola Pengguna</span>
-            </span>
-            <span class="sidebar-link" aria-disabled="true" title="Pengaturan belum tersedia">
-                <svg class="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1-1.7 2.9-.2-.1a1.7 1.7 0 00-1.9.3l-.1.1h-3.4l-.1-.2a1.7 1.7 0 00-1.6-1.1 1.7 1.7 0 00-.9.3l-.2.1-2.9-1.7.1-.2a1.7 1.7 0 00-.3-1.9l-.1-.1v-3.4l.2-.1a1.7 1.7 0 001.1-1.6 1.7 1.7 0 00-.3-.9l-.1-.2 1.7-2.9.2.1a1.7 1.7 0 001.9-.3l.1-.1h3.4l.1.2a1.7 1.7 0 001.6 1.1 1.7 1.7 0 00.9-.3l.2-.1 2.9 1.7-.1.2a1.7 1.7 0 00.3 1.9l.1.1z"/></svg>
+            </a>
+            <a href="{{ route('dashboard.pengurus.settings') }}" class="sidebar-link {{ $activeMenu === 'settings' ? 'active' : '' }}" @if ($activeMenu === 'settings') aria-current="page" @endif>
+                <svg class="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10 3.5h4l.55 2.35a6.5 6.5 0 011.5.87l2.28-.78 2 3.46-1.73 1.72a6.5 6.5 0 010 1.76l1.73 1.72-2 3.46-2.28-.78a6.5 6.5 0 01-1.5.87L14 20.5h-4l-.55-2.35a6.5 6.5 0 01-1.5-.87l-2.28.78-2-3.46 1.73-1.72a6.5 6.5 0 010-1.76L3.67 9.4l2-3.46 2.28.78a6.5 6.5 0 011.5-.87L10 3.5z"/>
+                    <circle cx="12" cy="12" r="3" stroke-width="1.8"/>
+                </svg>
                 <span>Pengaturan</span>
-            </span>
+            </a>
         </nav>
 
         @if ($activeMenu === 'audit')

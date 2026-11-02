@@ -14,6 +14,14 @@
     <div>
         <h2 id="project-progress-title" class="text-lg font-bold text-gray-900">Progres Project</h2>
         <p class="mt-1 text-sm text-gray-500">{{ $project->title }}</p>
+        <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
+            @if ($project->mentoringField)
+                <span>Bidang: {{ $project->mentoringField->field_name }}</span>
+            @endif
+            @if ($project->submitted_at)
+                <span>Diajukan: {{ $project->submitted_at->format('d M Y') }}</span>
+            @endif
+        </div>
         @if ($project->status === 'Draft' && $project->created_by === auth()->id())
             <a href="{{ route('dashboard.peserta.project.edit', $project->project_id) }}" class="mt-4 inline-flex items-center rounded-lg border border-ksm px-4 py-2 text-sm font-semibold text-ksm transition hover:bg-red-50">
                 Lanjutkan Draft <span class="ml-2">&rarr;</span>

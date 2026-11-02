@@ -18,8 +18,8 @@
     </p>
 
     <div class="flex items-center justify-center gap-4 mb-16">
-        <a href="#showcase" class="btn btn-primary">Lihat Showcase &rarr;</a>
-        <a href="#mentoring" class="btn btn-outline">Mentoring</a>
+        <a href="{{ route('showcase') }}" class="btn btn-primary">Jelajahi Showcase &rarr;</a>
+        <a href="{{ route('mentoring') }}" class="btn btn-outline">Mentoring</a>
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-4 gap-8 border-t border-gray-100 pt-10">
@@ -51,6 +51,7 @@
             </div>
             <p class="text-gray-300 text-sm max-w-sm text-left md:text-right">
                 Konsultasi terstruktur dan penempatan portofolio intensif bersama mentor berpengalaman untuk tiap jalur spesialisasi.
+                <a href="{{ route('mentoring') }}" class="ml-1 font-semibold text-white underline underline-offset-4">Lihat program mentoring</a>
             </p>
         </div>
 
@@ -58,13 +59,41 @@
             @forelse($mentoringFields as $field)
                 <div class="custom-card p-6 group">
                     <div class="card-icon-wrapper">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                        @switch($field->field_name)
+                            @case('Game Dev')
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10a3 3 0 0 1 2.9 2.2l1.1 4.3a2 2 0 0 1-3.2 2l-2.4-1.8H8.6l-2.4 1.8a2 2 0 0 1-3.2-2l1.1-4.3A3 3 0 0 1 7 8Z"></path>
+                                    <path stroke-linecap="round" stroke-width="2" d="M8 10v4m-2-2h4"></path>
+                                    <circle cx="16" cy="11" r=".75" fill="currentColor"></circle>
+                                    <circle cx="18" cy="13" r=".75" fill="currentColor"></circle>
+                                </svg>
+                                @break
+                            @case('UI/UX')
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <rect x="4" y="5" width="16" height="14" rx="1.5" stroke-width="2"></rect>
+                                    <path stroke-linecap="round" stroke-width="2" d="M10 5v14m5-14v14"></path>
+                                </svg>
+                                @break
+                            @case('Graphic Design')
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3a9 9 0 1 0 0 18h1.25a2.75 2.75 0 0 0 1.8-4.83 1.5 1.5 0 0 1 .98-2.67H18a3 3 0 0 0 3-3 7.5 7.5 0 0 0-9-7.5Z"></path>
+                                    <circle cx="7.5" cy="11" r=".75" fill="currentColor"></circle>
+                                    <circle cx="10" cy="7.5" r=".75" fill="currentColor"></circle>
+                                    <circle cx="14" cy="7.5" r=".75" fill="currentColor"></circle>
+                                </svg>
+                                @break
+                            @default
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <rect x="3" y="5" width="18" height="14" rx="1.5" stroke-width="2"></rect>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m8 10 3 2-3 2m5 0h3"></path>
+                                </svg>
+                        @endswitch
                     </div>
                     <h3 class="font-bold text-lg mb-2">{{ $field->field_name }}</h3>
                     <p class="text-gray-500 text-sm mb-6 line-clamp-3">
                         {{ $field->description ?? 'Deskripsi bidang ' . $field->field_name . ' dalam rekayasa multimedia.' }}
                     </p>
-                    <a href="#" class="text-xs font-bold text-ksm hover:underline flex items-center gap-1">
+                    <a href="{{ route('mentoring') }}" class="text-xs font-bold text-ksm hover:underline flex items-center gap-1">
                         Kurikulum Teknis <span class="text-lg leading-none">&rsaquo;</span>
                     </a>
                 </div>
@@ -82,7 +111,7 @@
                 <span class="section-label">Kurasi Terpilih</span>
                 <h2 class="section-title">Karya Terbaru</h2>
             </div>
-            <a href="#" class="text-sm font-bold text-ksm hover:underline flex items-center gap-1">
+            <a href="{{ route('showcase') }}" class="text-sm font-bold text-ksm hover:underline flex items-center gap-1">
                 Lihat Semua <span class="text-lg leading-none">&rsaquo;</span>
             </a>
         </div>
