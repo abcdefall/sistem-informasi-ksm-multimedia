@@ -26,14 +26,21 @@ class ProjectMediaController extends Controller
         abort_unless(Storage::disk('public')->exists($path), 404);
 
         $user = $request->user();
-        $isPrivileged = in_array($user->role?->role_name, ['Mentor', 'Pengurus KSM'], true);
-        $isProjectMember = $project->created_by === $user->user_id
-            || $project->members()->where('user_id', $user->user_id)->exists();
-
-        abort_unless(
-            $project->status === 'Published' || $isPrivileged || $isProjectMember,
-            403,
+        $isThumbnail = $project->thumbnail_url === $path;
+        $isPublished = $project->status === 'Published';
+        $isSubmitted = $project->status !== 'Draft';
+        $isPrivileged = $user && in_array($user->role?->role_name, ['Mentor', 'Pengurus KSM'], true);
+        $isProjectMember = $user && (
+            $project->created_by === $user->user_id
+            || $project->members()->where('user_id', $user->user_id)->exists()
         );
+        $canViewThumbnail = $isThumbnail
+            && ($isPublished || ($user && ($isSubmitted || $isPrivileged || $isProjectMember)));
+        $canViewOtherFiles = ! $isThumbnail
+            && $user
+            && ($isPublished || $isPrivileged || $isProjectMember);
+
+        abort_unless($canViewThumbnail || $canViewOtherFiles, 403);
 
         return Storage::disk('public')->response($path);
     }

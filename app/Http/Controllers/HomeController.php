@@ -10,6 +10,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -21,6 +22,147 @@ class HomeController extends Controller
     public function index()
     {
         return $this->renderPage('landing');
+    }
+
+    public function mentoring()
+    {
+        $role = auth()->user()?->role?->role_name;
+        $pages = [
+            'Peserta' => [
+                'eyebrow' => 'Program untuk peserta',
+                'heading' => 'Kembangkan ide menjadi karya nyata',
+                'description' => 'Pilih jalur mentoring yang sesuai dengan minat Anda. Belajar terarah, dapatkan masukan mentor, dan bangun portofolio capstone secara bertahap.',
+                'action_label' => 'Mulai Proyek',
+                'action_url' => route('dashboard.peserta.project.create'),
+            ],
+            'Mentor' => [
+                'eyebrow' => 'Program untuk mentor',
+                'heading' => 'Dampingi talenta multimedia berikutnya',
+                'description' => 'Kenali kurikulum dan jalur spesialisasi yang menjadi ruang pendampingan peserta KSM Multimedia.',
+                'action_label' => 'Buka Dashboard Mentor',
+                'action_url' => route('dashboard.mentor'),
+            ],
+            'Pengurus KSM' => [
+                'eyebrow' => 'Program KSM Multimedia',
+                'heading' => 'Kurikulum mentoring yang terarah',
+                'description' => 'Jelajahi jalur kurikulum dan informasi program mentoring KSM Multimedia untuk setiap bidang spesialisasi.',
+                'action_label' => 'Buka Dashboard Pengurus',
+                'action_url' => route('dashboard.pengurus'),
+            ],
+        ];
+        $context = $pages[$role] ?? [
+            'eyebrow' => 'Program KSM Multimedia',
+            'heading' => 'Temukan jalur mentoring Anda',
+            'description' => 'Kurikulum terstruktur untuk membantu mahasiswa mengembangkan keterampilan multimedia dan menghasilkan karya capstone yang siap dipresentasikan.',
+            'action_label' => 'Masuk untuk Bergabung',
+            'action_url' => route('login'),
+        ];
+
+        return response()
+            ->view('mentoring', [
+                'mentoringFields' => MentoringField::orderBy('field_name')->get(),
+                'dashboardRole' => $role,
+                'mentoringContext' => $context,
+            ])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, private')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
+    }
+
+    public function showcase(Request $request)
+    {
+        $showcasePages = [
+            'Peserta' => [
+                'view' => 'showcase-role.peserta',
+                'eyebrow' => 'Inspirasi Capstone',
+                'heading' => 'Temukan Inspirasi Karya',
+                'description' => 'Jelajahi karya yang telah dipublikasikan dan temukan inspirasi untuk mengembangkan capstone Anda.',
+                'action_label' => 'Ajukan Karya',
+                'action_url' => route('dashboard.peserta.project.create'),
+            ],
+            'Mentor' => [
+                'view' => 'showcase-role.mentor',
+                'eyebrow' => 'Apresiasi Karya Mahasiswa',
+                'heading' => 'Showcase Karya Mahasiswa',
+                'description' => 'Jelajahi hasil capstone mahasiswa yang telah dipublikasikan sebagai bagian dari perjalanan mentoring.',
+                'action_label' => 'Buka Dashboard Mentor',
+                'action_url' => route('dashboard.mentor'),
+            ],
+            'Pengurus KSM' => [
+                'view' => 'showcase-role.pengurus',
+                'eyebrow' => 'Publikasi KSM Multimedia',
+                'heading' => 'Showcase Karya Mahasiswa',
+                'description' => 'Jelajahi dan pantau karya capstone yang telah dipublikasikan kepada sivitas akademika.',
+                'action_label' => 'Buka Dashboard Pengurus',
+                'action_url' => route('dashboard.pengurus'),
+            ],
+        ];
+        $dashboardRole = auth()->user()?->role?->role_name;
+        $showcaseView = $showcasePages[$dashboardRole]['view'] ?? 'showcase';
+        $showcaseContext = $showcasePages[$dashboardRole] ?? [
+            'eyebrow' => 'Portfolio Capstone Tahunan',
+            'heading' => 'Showcase Karya Mahasiswa',
+            'description' => 'Eksplorasi inovasi digital, game interaktif, riset antarmuka, dan perancangan visual terbaik hasil karya sivitas akademika KSM Multimedia.',
+            'action_label' => null,
+            'action_url' => null,
+        ];
+
+        $filters = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'field' => ['nullable', 'string', Rule::exists('mentoring_fields', 'field_id')],
+        ]);
+
+        $projectsQuery = Project::query()
+            ->with(['mentoringField', 'period', 'creator'])
+            ->where('status', 'Published');
+
+        if (!empty($filters['q'])) {
+            $search = $filters['q'];
+            $projectsQuery->where(function (EloquentBuilder $query) use ($search): void {
+                $query->where('title', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhereHas('mentoringField', fn (EloquentBuilder $fieldQuery) => $fieldQuery->where('field_name', 'like', "%{$search}%"))
+                    ->orWhereHas('creator', fn (EloquentBuilder $creatorQuery) => $creatorQuery->where('name', 'like', "%{$search}%"))
+                    ->orWhereExists(function (Builder $memberQuery) use ($search): void {
+                        $memberQuery->selectRaw('1')
+                            ->from('project_members')
+                            ->join('users', 'users.user_id', '=', 'project_members.user_id')
+                            ->whereColumn('project_members.project_id', 'projects.project_id')
+                            ->where('users.name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if (!empty($filters['field'])) {
+            $projectsQuery->where('field_id', $filters['field']);
+        }
+
+        $projects = $projectsQuery
+            ->orderByDesc('published_at')
+            ->orderByDesc('created_at')
+            ->paginate(6)
+            ->withQueryString();
+
+        $membersByProject = DB::table('project_members')
+            ->join('users', 'users.user_id', '=', 'project_members.user_id')
+            ->whereIn('project_members.project_id', $projects->getCollection()->pluck('project_id'))
+            ->orderBy('users.name')
+            ->get(['project_members.project_id', 'users.name'])
+            ->groupBy('project_id')
+            ->map(fn ($members) => $members->pluck('name'));
+
+        return response()
+            ->view($showcaseView, [
+                'projects' => $projects,
+                'mentoringFields' => MentoringField::orderBy('field_name')->get(),
+                'membersByProject' => $membersByProject,
+                'filters' => $filters,
+                'dashboardRole' => $dashboardRole,
+                'showcaseContext' => $showcaseContext,
+            ])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, private')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     public function landingRole()
@@ -51,6 +193,45 @@ class HomeController extends Controller
             'project' => $project,
             'activities' => $project ? $this->participantActivities($project->project_id) : collect(),
         ]);
+    }
+
+    public function profile()
+    {
+        $roleName = auth()->user()->role?->role_name;
+        abort_unless(in_array($roleName, ['Peserta', 'Mentor'], true), 403, 'Profil ini khusus peserta dan mentor.');
+
+        $data = ['activeMenu' => 'profile'];
+        if ($roleName === 'Mentor') {
+            $data += [
+                'waitingReviewCount' => Project::whereIn('status', ['Submitted', 'In Review'])->count(),
+                'revisionIncomingCount' => Project::where('status', 'Resubmitted')->count(),
+            ];
+        }
+
+        return $this->privateView('profile', $data);
+    }
+
+    public function updateProfile(Request $request): RedirectResponse
+    {
+        $roleName = auth()->user()->role?->role_name;
+        abort_unless(in_array($roleName, ['Peserta', 'Mentor'], true), 403, 'Profil ini khusus peserta dan mentor.');
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'bio' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $user = $request->user();
+        $profileData = $user->profile_data ?? [];
+        $profileData['bio'] = filled($validated['bio'] ?? null) ? trim($validated['bio']) : null;
+
+        $user->name = trim($validated['name']);
+        $user->profile_data = $profileData;
+        $user->save();
+
+        return redirect()
+            ->route('dashboard.profile')
+            ->with('status', 'Profil berhasil diperbarui.');
     }
 
     public function dashboardMentor(Request $request)
@@ -106,6 +287,126 @@ class HomeController extends Controller
                 ->count('project_id'),
             'filters' => $filters,
         ]);
+    }
+
+    public function mentorEvaluationHistory()
+    {
+        $this->authorizeMentor();
+
+        $evaluations = DB::table('reviews')
+            ->join('projects', 'projects.project_id', '=', 'reviews.project_id')
+            ->leftJoin('mentoring_fields', 'mentoring_fields.field_id', '=', 'projects.field_id')
+            ->where('reviews.reviewer_id', auth()->id())
+            ->orderByDesc('reviews.created_at')
+            ->select([
+                'reviews.review_id',
+                'reviews.project_id',
+                'reviews.comment',
+                'reviews.rating',
+                'reviews.rubric_scores',
+                'reviews.created_at',
+                'projects.title as project_title',
+                'mentoring_fields.field_name',
+            ])
+            ->paginate(10);
+
+        return $this->privateView('mentor.evaluations', [
+            'evaluations' => $evaluations,
+            'waitingReviewCount' => Project::whereIn('status', ['Submitted', 'In Review'])->count(),
+            'revisionIncomingCount' => Project::where('status', 'Resubmitted')->count(),
+        ]);
+    }
+
+    public function mentorSchedules()
+    {
+        $this->authorizeMentor();
+
+        $schedules = DB::table('mentoring_schedules')
+            ->join('projects', 'projects.project_id', '=', 'mentoring_schedules.project_id')
+            ->where('mentoring_schedules.mentor_id', auth()->id())
+            ->orderBy('mentoring_schedules.starts_at')
+            ->select([
+                'mentoring_schedules.schedule_id',
+                'mentoring_schedules.project_id',
+                'mentoring_schedules.starts_at',
+                'mentoring_schedules.duration_minutes',
+                'mentoring_schedules.location',
+                'mentoring_schedules.meeting_url',
+                'mentoring_schedules.notes',
+                'mentoring_schedules.status',
+                'projects.title as project_title',
+            ])
+            ->paginate(10);
+
+        $projects = Project::query()
+            ->whereIn('status', ['Submitted', 'In Review', 'Revision Required', 'Resubmitted', 'Approved', 'Published'])
+            ->orderBy('title')
+            ->get(['project_id', 'title']);
+
+        return $this->privateView('mentor.schedules', [
+            'schedules' => $schedules,
+            'projects' => $projects,
+            'waitingReviewCount' => Project::whereIn('status', ['Submitted', 'In Review'])->count(),
+            'revisionIncomingCount' => Project::where('status', 'Resubmitted')->count(),
+        ]);
+    }
+
+    public function storeMentorSchedule(Request $request): RedirectResponse
+    {
+        $this->authorizeMentor();
+        $validated = $this->validateMentorSchedule($request);
+
+        do {
+            $scheduleId = 'SCH-'.Str::upper(Str::random(16));
+        } while (DB::table('mentoring_schedules')->where('schedule_id', $scheduleId)->exists());
+
+        DB::table('mentoring_schedules')->insert([
+            ...$validated,
+            'schedule_id' => $scheduleId,
+            'mentor_id' => auth()->id(),
+            'status' => 'Scheduled',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return redirect()
+            ->route('dashboard.mentor.schedules')
+            ->with('status', 'Jadwal mentoring berhasil dibuat.');
+    }
+
+    public function updateMentorSchedule(Request $request, string $scheduleId): RedirectResponse
+    {
+        $this->authorizeMentor();
+        $validated = $this->validateMentorSchedule($request, false);
+
+        $updated = DB::table('mentoring_schedules')
+            ->where('schedule_id', $scheduleId)
+            ->where('mentor_id', auth()->id())
+            ->where('status', 'Scheduled')
+            ->update([...$validated, 'updated_at' => now()]);
+
+        abort_unless($updated, 404);
+
+        return redirect()
+            ->route('dashboard.mentor.schedules')
+            ->with('status', 'Jadwal mentoring berhasil diperbarui.');
+    }
+
+    public function cancelMentorSchedule(string $scheduleId): RedirectResponse
+    {
+        $this->authorizeMentor();
+
+        $updated = DB::table('mentoring_schedules')
+            ->where('schedule_id', $scheduleId)
+            ->where('mentor_id', auth()->id())
+            ->where('status', 'Scheduled')
+            ->update(['status' => 'Canceled', 'updated_at' => now()]);
+
+        abort_unless($updated, 404);
+
+        return redirect()
+            ->route('dashboard.mentor.schedules')
+            ->with('status', 'Jadwal mentoring berhasil dibatalkan.');
     }
 
     public function dashboardPengurus(Request $request)
@@ -259,6 +560,171 @@ class HomeController extends Controller
             'pendingApprovalCount' => Project::where('status', 'Approved')->count(),
             'activeMenu' => 'approvals',
         ]);
+    }
+
+    public function pengurusUsers(Request $request)
+    {
+        $this->authorizePengurus();
+
+        $filters = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'role' => [
+                'nullable',
+                'string',
+                Rule::exists('roles', 'role_id')->where(fn (Builder $query) => $query->whereIn('role_name', ['Peserta', 'Mentor', 'Pengurus KSM'])),
+            ],
+            'status' => ['nullable', Rule::in(['active', 'inactive'])],
+        ]);
+        $query = User::query()
+            ->with('role')
+            ->whereHas('role', fn (EloquentBuilder $roleQuery) => $roleQuery->whereIn('role_name', ['Peserta', 'Mentor', 'Pengurus KSM']));
+
+        if (! empty($filters['q'])) {
+            $search = $filters['q'];
+            $query->where(function (EloquentBuilder $userQuery) use ($search): void {
+                $userQuery->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('user_id', 'like', "%{$search}%");
+            });
+        }
+        if (! empty($filters['role'])) {
+            $query->where('role_id', $filters['role']);
+        }
+        if (($filters['status'] ?? null) === 'active') {
+            $query->where('is_active', true);
+        } elseif (($filters['status'] ?? null) === 'inactive') {
+            $query->where('is_active', false);
+        }
+
+        return $this->privateView('pengurus.users', [
+            'users' => $query->orderBy('name')->paginate(12)->withQueryString(),
+            'roles' => DB::table('roles')->whereIn('role_name', ['Peserta', 'Mentor', 'Pengurus KSM'])->orderBy('role_name')->get(),
+            'filters' => $filters,
+            'activeMenu' => 'users',
+            'activePeriod' => DB::table('mentoring_periods')->where('is_active', true)->orderByDesc('start_date')->value('period_name'),
+            'pendingApprovalCount' => Project::where('status', 'Approved')->count(),
+            'userCounts' => [
+                'all' => User::whereHas('role', fn (EloquentBuilder $roleQuery) => $roleQuery->whereIn('role_name', ['Peserta', 'Mentor', 'Pengurus KSM']))->count(),
+                'active' => User::where('is_active', true)->whereHas('role', fn (EloquentBuilder $roleQuery) => $roleQuery->whereIn('role_name', ['Peserta', 'Mentor', 'Pengurus KSM']))->count(),
+                'inactive' => User::where('is_active', false)->whereHas('role', fn (EloquentBuilder $roleQuery) => $roleQuery->whereIn('role_name', ['Peserta', 'Mentor', 'Pengurus KSM']))->count(),
+            ],
+        ]);
+    }
+
+    public function updatePengurusUser(Request $request, string $userId): RedirectResponse
+    {
+        $this->authorizePengurus();
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId, 'user_id')],
+            'role_id' => [
+                'required',
+                'string',
+                Rule::exists('roles', 'role_id')->where(fn (Builder $query) => $query->whereIn('role_name', ['Peserta', 'Mentor', 'Pengurus KSM'])),
+            ],
+        ]);
+
+        DB::transaction(function () use ($userId, $validated): void {
+            $user = User::query()
+                ->with('role')
+                ->where('user_id', $userId)
+                ->whereHas('role', fn (EloquentBuilder $roleQuery) => $roleQuery->whereIn('role_name', ['Peserta', 'Mentor', 'Pengurus KSM']))
+                ->lockForUpdate()
+                ->firstOrFail();
+            $newRole = DB::table('roles')->where('role_id', $validated['role_id'])->firstOrFail();
+
+            if ($user->user_id === auth()->id() && $newRole->role_name !== 'Pengurus KSM') {
+                abort(409, 'Anda tidak dapat mengubah role akun sendiri.');
+            }
+            if ($user->is_active && $user->role?->role_name === 'Pengurus KSM' && $newRole->role_name !== 'Pengurus KSM') {
+                $this->ensureAnotherActivePengurusExists($user->user_id);
+            }
+
+            $oldRole = $user->role?->role_name;
+            $user->forceFill($validated)->save();
+
+            $this->recordPengurusAudit(
+                'USER_UPDATED',
+                'Memperbarui akun '.$user->user_id.': nama, email, atau role berubah. '.
+                    'Role: '.($oldRole ?: 'Tidak diketahui').' → '.$newRole->role_name.'.',
+            );
+        });
+
+        return redirect()
+            ->route('dashboard.pengurus.users')
+            ->with('status', 'Data pengguna berhasil diperbarui.');
+    }
+
+    public function togglePengurusUserStatus(string $userId): RedirectResponse
+    {
+        $this->authorizePengurus();
+
+        DB::transaction(function () use ($userId): void {
+            $user = User::query()
+                ->with('role')
+                ->where('user_id', $userId)
+                ->whereHas('role', fn (EloquentBuilder $roleQuery) => $roleQuery->whereIn('role_name', ['Peserta', 'Mentor', 'Pengurus KSM']))
+                ->lockForUpdate()
+                ->firstOrFail();
+            abort_if($user->user_id === auth()->id(), 409, 'Anda tidak dapat menonaktifkan akun sendiri.');
+
+            if ($user->is_active && $user->role?->role_name === 'Pengurus KSM') {
+                $this->ensureAnotherActivePengurusExists($user->user_id);
+            }
+
+            $user->forceFill(['is_active' => ! $user->is_active])->save();
+            $this->recordPengurusAudit(
+                $user->is_active ? 'USER_ACTIVATED' : 'USER_DEACTIVATED',
+                'Mengubah status akun '.$user->user_id.' menjadi '.($user->is_active ? 'aktif' : 'nonaktif').'.',
+            );
+        });
+
+        return redirect()
+            ->route('dashboard.pengurus.users')
+            ->with('status', 'Status akun berhasil diperbarui.');
+    }
+
+    public function pengurusSettings()
+    {
+        $this->authorizePengurus();
+
+        return $this->privateView('pengurus.settings', [
+            'periods' => DB::table('mentoring_periods')->orderByDesc('start_date')->get(),
+            'activePeriod' => DB::table('mentoring_periods')->where('is_active', true)->orderByDesc('start_date')->value('period_name'),
+            'pendingApprovalCount' => Project::where('status', 'Approved')->count(),
+            'activeMenu' => 'settings',
+        ]);
+    }
+
+    public function updatePengurusActivePeriod(Request $request): RedirectResponse
+    {
+        $this->authorizePengurus();
+        $validated = $request->validate([
+            'period_id' => ['required', 'string', Rule::exists('mentoring_periods', 'period_id')],
+        ]);
+
+        DB::transaction(function () use ($validated): void {
+            $period = DB::table('mentoring_periods')
+                ->where('period_id', $validated['period_id'])
+                ->lockForUpdate()
+                ->first();
+            abort_unless($period, 404);
+
+            DB::table('mentoring_periods')->update(['is_active' => false, 'updated_at' => now()]);
+            DB::table('mentoring_periods')
+                ->where('period_id', $period->period_id)
+                ->update(['is_active' => true, 'updated_at' => now()]);
+
+            $this->recordPengurusAudit(
+                'ACTIVE_PERIOD_CHANGED',
+                'Mengatur periode mentoring aktif menjadi "'.$period->period_name.'".',
+            );
+        });
+
+        return redirect()
+            ->route('dashboard.pengurus.settings')
+            ->with('status', 'Periode mentoring aktif berhasil diperbarui.');
     }
 
     public function showPengurusApproval(string $projectId)
@@ -1209,9 +1675,64 @@ class HomeController extends Controller
         abort_unless(auth()->user()->role?->role_name === 'Mentor', 403, 'Fitur ini khusus mentor.');
     }
 
+    private function validateMentorSchedule(Request $request, bool $includeProject = true): array
+    {
+        $rules = [
+            'starts_at' => ['required', 'date_format:Y-m-d\TH:i', 'after:now'],
+            'duration_minutes' => ['required', 'integer', 'min:15', 'max:240'],
+            'location' => ['nullable', 'string', 'max:255'],
+            'meeting_url' => ['nullable', 'url', 'max:2048'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ];
+
+        if ($includeProject) {
+            $rules = [
+                'project_id' => [
+                'required',
+                'string',
+                Rule::exists('projects', 'project_id')
+                    ->where(fn (Builder $query) => $query->whereIn('status', ['Submitted', 'In Review', 'Revision Required', 'Resubmitted', 'Approved', 'Published'])),
+                ],
+            ] + $rules;
+        }
+
+        $validated = $request->validate($rules);
+
+        if (blank($validated['location'] ?? null) && blank($validated['meeting_url'] ?? null)) {
+            throw ValidationException::withMessages([
+                'location' => 'Isi lokasi atau tautan pertemuan mentoring.',
+            ]);
+        }
+
+        $scheduleData = [
+            'starts_at' => Carbon::createFromFormat('Y-m-d\TH:i', $validated['starts_at'])->format('Y-m-d H:i:s'),
+            'duration_minutes' => $validated['duration_minutes'],
+            'location' => $validated['location'] ?? null,
+            'meeting_url' => $validated['meeting_url'] ?? null,
+            'notes' => $validated['notes'] ?? null,
+        ];
+
+        if ($includeProject) {
+            $scheduleData['project_id'] = $validated['project_id'];
+        }
+
+        return $scheduleData;
+    }
+
     private function authorizePengurus(): void
     {
         abort_unless(auth()->user()->role?->role_name === 'Pengurus KSM', 403, 'Fitur ini khusus pengurus.');
+    }
+
+    private function ensureAnotherActivePengurusExists(string $exceptUserId): void
+    {
+        $anotherActivePengurusExists = User::query()
+            ->where('is_active', true)
+            ->where('user_id', '<>', $exceptUserId)
+            ->whereHas('role', fn (EloquentBuilder $roleQuery) => $roleQuery->where('role_name', 'Pengurus KSM'))
+            ->exists();
+
+        abort_unless($anotherActivePengurusExists, 409, 'Sistem harus memiliki minimal satu akun pengurus aktif.');
     }
 
     private function recordPengurusAudit(string $action, string $description, ?string $projectId = null): void

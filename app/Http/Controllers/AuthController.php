@@ -30,6 +30,7 @@ class AuthController extends Controller
         }
 
         $roleName = $credentials['role'];
+        $credentials['is_active'] = true;
         unset($credentials['role']);
 
         if (! Auth::attempt($credentials, false)) {

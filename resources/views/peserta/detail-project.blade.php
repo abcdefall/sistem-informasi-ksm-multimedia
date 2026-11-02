@@ -48,7 +48,7 @@
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
                         Project
                     </a>
-                    <a href="#" class="sidebar-link">
+                    <a href="{{ route('dashboard.profile') }}" class="sidebar-link">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 21a8 8 0 0116 0"></path></svg>
                         Profil
                     </a>
@@ -57,8 +57,6 @@
         </aside>
 
         <main class="participant-content space-y-5">
-            <a href="{{ route('dashboard.peserta.projects.index') }}" class="inline-flex items-center gap-2 text-sm font-medium text-gray-500 transition hover:text-ksm">&larr; Kembali ke Project</a>
-
             @if (session('status'))
                 <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800" role="status">{{ session('status') }}</div>
             @endif
@@ -240,8 +238,8 @@
             <div class="flex items-center gap-2 font-bold text-white">KSM Multimedia <span class="font-normal text-gray-400 ml-2">&copy; {{ date('Y') }} KSM Multimedia. Hak Cipta Dilindungi Undang-Undang.</span></div>
             <div class="flex gap-6 font-medium">
                 <a href="{{ route('landing') }}" class="text-gray-400 hover:text-white transition">Beranda</a>
-                <a href="{{ route('landing') }}#showcase" class="text-gray-400 hover:text-white transition">Showcase</a>
-                <a href="{{ route('landing') }}#mentoring" class="text-gray-400 hover:text-white transition">Mentoring</a>
+                <a href="{{ route('showcase') }}" class="text-gray-400 hover:text-white transition">Showcase</a>
+                <a href="{{ route('mentoring') }}" class="text-gray-400 hover:text-white transition">Mentoring</a>
                 <a href="#" class="text-gray-400 hover:text-white transition">Kebijakan Privasi</a>
                 <a href="#" class="text-gray-400 hover:text-white transition">Syarat &amp; Ketentuan</a>
             </div>

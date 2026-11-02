@@ -162,8 +162,8 @@
             </div>
             <div class="flex gap-6 font-medium">
                 <a href="#" class="text-gray-400 hover:text-white transition">Beranda</a>
-                <a href="#showcase" class="text-gray-400 hover:text-white transition">Showcase</a>
-                <a href="#mentoring" class="text-gray-400 hover:text-white transition">Mentoring</a>
+                <a href="{{ route('showcase') }}" class="text-gray-400 hover:text-white transition">Showcase</a>
+                <a href="{{ route('mentoring') }}" class="text-gray-400 hover:text-white transition">Mentoring</a>
                 <a href="#" class="text-gray-400 hover:text-white transition">Kebijakan Privasi</a>
                 <a href="#" class="text-gray-400 hover:text-white transition">Syarat & Ketentuan</a>
             </div>

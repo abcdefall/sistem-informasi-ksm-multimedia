@@ -123,7 +123,7 @@ test('the login page displays role selection buttons', function () {
         ->assertSee('Pengurus');
 });
 
-test('the public landing page stays public when a user is authenticated', function () {
+test('the public landing page keeps public content and shows the authenticated role navigation', function () {
     createTestUser();
     $user = \App\Models\User::where('email', 'andi@example.com')->firstOrFail();
 
@@ -132,9 +132,11 @@ test('the public landing page stays public when a user is authenticated', functi
         ->assertOk()
         ->assertSee('ARSIP AKADEMIK & SHOWCASE MULTIMEDIA', false)
         ->assertDontSee('Selamat datang, Andi Peserta')
-        ->assertSee('Masuk')
-        ->assertDontSee('Andi Peserta (Peserta)')
-        ->assertDontSee('Keluar');
+        ->assertSee('Dashboard Peserta')
+        ->assertSee('Andi Peserta')
+        ->assertSee('(Peserta)')
+        ->assertSee('Keluar')
+        ->assertDontSee('Masuk</a>', false);
 });
 
 test('an authenticated user is redirected from the login form to landing', function () {
@@ -326,6 +328,8 @@ test('an administrator sees the role dashboard link and capstone monitoring dash
         ->assertSee('PORTAL PENGURUS')
         ->assertSee('Approval Publikasi')
         ->assertSee('Log Audit Trail')
+        ->assertSee('Kelola Pengguna')
+        ->assertSee(route('dashboard.pengurus.settings'))
         ->assertSee('Menunggu Persetujuan')
         ->assertSee('Petualangan Nusantara')
         ->assertSee('ID: PRJ-ADMIN-001')
@@ -587,7 +591,9 @@ test('a mentor can open the mentor review dashboard and filter its queue', funct
         ->assertSee('PORTAL MENTOR')
         ->assertSee('Kembali ke Beranda')
         ->assertSee('Kebijakan Privasi')
-        ->assertSee('Panduan Penilaian')
+        ->assertDontSee('Panduan Penilaian')
+        ->assertSee(route('dashboard.mentor.evaluations'))
+        ->assertSee(route('dashboard.mentor.schedules'))
         ->assertSee('Semester Genap 2026')
         ->assertSee('Petualangan Nusantara')
         ->assertSee('Knight 2D Quest')
@@ -604,6 +610,150 @@ test('a mentor can open the mentor review dashboard and filter its queue', funct
         ->assertDontSee('Knight 2D Quest');
 });
 
+test('a mentor can view only their own evaluation history', function () {
+    [$mentor, , $projectId] = createMentorReviewFixture();
+    DB::table('users')->insert([
+        'user_id' => 'USR-OTHER-MENTOR',
+        'role_id' => 'ROL-001',
+        'name' => 'Mentor Lain',
+        'email' => 'mentor-lain@example.com',
+        'password_hash' => Hash::make('password123'),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    DB::table('reviews')->insert([
+        [
+            'review_id' => 'REV-HISTORY-OWN',
+            'project_id' => $projectId,
+            'reviewer_id' => $mentor->user_id,
+            'comment' => 'Feedback dari mentor yang login.',
+            'rating' => '4',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+        [
+            'review_id' => 'REV-HISTORY-OTHER',
+            'project_id' => $projectId,
+            'reviewer_id' => 'USR-OTHER-MENTOR',
+            'comment' => 'Feedback milik mentor lain.',
+            'rating' => '2',
+            'created_at' => now()->subMinute(),
+            'updated_at' => now()->subMinute(),
+        ],
+    ]);
+
+    $this->actingAs($mentor)
+        ->get(route('dashboard.mentor.evaluations'))
+        ->assertOk()
+        ->assertSee('Riwayat Evaluasi')
+        ->assertSee('PORTAL MENTOR')
+        ->assertSee('Halo, Budi Mentor')
+        ->assertSee('Kembali ke Beranda')
+        ->assertSee('Petualangan Nusantara')
+        ->assertSee('Feedback dari mentor yang login.')
+        ->assertDontSee('Feedback milik mentor lain.');
+});
+
+test('a mentor can create update and cancel their mentoring schedules', function () {
+    [$mentor, , $projectId] = createMentorReviewFixture();
+    $this->actingAs($mentor);
+
+    $this->get(route('dashboard.mentor.schedules'))
+        ->assertOk()
+        ->assertSee('Jadwal Mentoring')
+        ->assertSee('Buat Jadwal Baru')
+        ->assertSee('Petualangan Nusantara');
+
+    $this->post(route('dashboard.mentor.schedules.store'), [
+        'project_id' => $projectId,
+        'starts_at' => now()->addDays(2)->format('Y-m-d\TH:i'),
+        'duration_minutes' => 60,
+        'location' => 'Ruang Multimedia',
+        'meeting_url' => '',
+        'notes' => 'Siapkan demo project.',
+    ])
+        ->assertRedirect(route('dashboard.mentor.schedules'))
+        ->assertSessionHas('status', 'Jadwal mentoring berhasil dibuat.');
+
+    $schedule = DB::table('mentoring_schedules')->where('mentor_id', $mentor->user_id)->first();
+    $this->assertNotNull($schedule);
+    $this->assertSame($projectId, $schedule->project_id);
+    $this->assertSame('Scheduled', $schedule->status);
+
+    $updatedStart = now()->addDays(3)->format('Y-m-d\TH:i');
+    $this->put(route('dashboard.mentor.schedules.update', $schedule->schedule_id), [
+        'starts_at' => $updatedStart,
+        'duration_minutes' => 90,
+        'location' => '',
+        'meeting_url' => 'https://meet.example.test/session',
+        'notes' => 'Bawa pembaruan terakhir.',
+    ])
+        ->assertRedirect(route('dashboard.mentor.schedules'))
+        ->assertSessionHas('status', 'Jadwal mentoring berhasil diperbarui.');
+
+    $this->assertDatabaseHas('mentoring_schedules', [
+        'schedule_id' => $schedule->schedule_id,
+        'duration_minutes' => 90,
+        'location' => null,
+        'meeting_url' => 'https://meet.example.test/session',
+        'notes' => 'Bawa pembaruan terakhir.',
+    ]);
+
+    $this->patch(route('dashboard.mentor.schedules.cancel', $schedule->schedule_id))
+        ->assertRedirect(route('dashboard.mentor.schedules'))
+        ->assertSessionHas('status', 'Jadwal mentoring berhasil dibatalkan.');
+
+    $this->assertDatabaseHas('mentoring_schedules', [
+        'schedule_id' => $schedule->schedule_id,
+        'status' => 'Canceled',
+    ]);
+    $this->get(route('dashboard.mentor.schedules'))
+        ->assertSee('Dibatalkan')
+        ->assertDontSee('Ubah jadwal');
+});
+
+test('mentoring schedules require valid meeting details and are private to their mentor', function () {
+    [$mentor, $participant, $projectId] = createMentorReviewFixture();
+    $scheduleData = [
+        'project_id' => $projectId,
+        'starts_at' => now()->addDays(2)->format('Y-m-d\TH:i'),
+        'duration_minutes' => 60,
+        'location' => '',
+        'meeting_url' => '',
+    ];
+
+    $this->actingAs($mentor)
+        ->post(route('dashboard.mentor.schedules.store'), $scheduleData)
+        ->assertSessionHasErrors('location');
+    $this->assertDatabaseCount('mentoring_schedules', 0);
+
+    $this->post(route('dashboard.mentor.schedules.store'), [
+        ...$scheduleData,
+        'location' => 'Ruang Multimedia',
+    ])->assertRedirect(route('dashboard.mentor.schedules'));
+
+    $schedule = DB::table('mentoring_schedules')->first();
+    DB::table('users')->insert([
+        'user_id' => 'USR-OTHER-MENTOR',
+        'role_id' => 'ROL-001',
+        'name' => 'Mentor Lain',
+        'email' => 'mentor-lain@example.com',
+        'password_hash' => Hash::make('password123'),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $otherMentor = \App\Models\User::query()->findOrFail('USR-OTHER-MENTOR');
+    $this->actingAs($otherMentor)
+        ->patch(route('dashboard.mentor.schedules.cancel', $schedule->schedule_id))
+        ->assertNotFound();
+
+    $this->actingAs($participant)
+        ->get(route('dashboard.mentor.schedules'))
+        ->assertForbidden();
+});
+
 test('only mentors can open the mentor dashboard', function () {
     createTestUser();
     $participant = \App\Models\User::where('email', 'andi@example.com')->firstOrFail();
@@ -615,6 +765,141 @@ test('only mentors can open the mentor dashboard', function () {
     auth()->logout();
     $this->get(route('dashboard.mentor'))
         ->assertRedirect(route('login'));
+});
+
+test('pengurus can search and update registered user accounts', function () {
+    createTestUser('Pengurus KSM', 'pengurus@example.com', 'Pengurus Utama');
+    DB::table('roles')->insert([
+        ['role_id' => 'ROL-PESERTA', 'role_name' => 'Peserta', 'created_at' => now(), 'updated_at' => now()],
+        ['role_id' => 'ROL-MENTOR', 'role_name' => 'Mentor', 'created_at' => now(), 'updated_at' => now()],
+    ]);
+    DB::table('users')->insert([
+        'user_id' => 'USR-MANAGED',
+        'role_id' => 'ROL-PESERTA',
+        'name' => 'Peserta Dikelola',
+        'email' => 'peserta@example.com',
+        'password_hash' => Hash::make('password123'),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    $pengurus = \App\Models\User::query()->findOrFail('USR-001');
+
+    $this->actingAs($pengurus)
+        ->get(route('dashboard.pengurus.users', ['q' => 'peserta@example.com']))
+        ->assertOk()
+        ->assertSee('Kelola Pengguna')
+        ->assertSee('peserta@example.com')
+        ->assertDontSee('password_hash')
+        ->assertSee(route('dashboard.pengurus.settings'));
+
+    $this->put(route('dashboard.pengurus.users.update', 'USR-MANAGED'), [
+        'name' => 'Nama Diperbarui',
+        'email' => 'nama.baru@example.com',
+        'role_id' => 'ROL-MENTOR',
+    ])->assertRedirect(route('dashboard.pengurus.users'))
+        ->assertSessionHas('status', 'Data pengguna berhasil diperbarui.');
+
+    $this->assertDatabaseHas('users', [
+        'user_id' => 'USR-MANAGED',
+        'name' => 'Nama Diperbarui',
+        'email' => 'nama.baru@example.com',
+        'role_id' => 'ROL-MENTOR',
+    ]);
+    $this->assertDatabaseHas('audit_logs', [
+        'user_id' => 'USR-001',
+        'action' => 'USER_UPDATED',
+    ]);
+});
+
+test('pengurus can deactivate and reactivate accounts but cannot deactivate themselves or the last active pengurus', function () {
+    createTestUser('Pengurus KSM', 'pengurus@example.com', 'Pengurus Utama');
+    DB::table('roles')->insert([
+        'role_id' => 'ROL-PESERTA',
+        'role_name' => 'Peserta',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    DB::table('users')->insert([
+        'user_id' => 'USR-MANAGED',
+        'role_id' => 'ROL-PESERTA',
+        'name' => 'Peserta Dikelola',
+        'email' => 'peserta@example.com',
+        'password_hash' => Hash::make('password123'),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    $pengurus = \App\Models\User::query()->findOrFail('USR-001');
+
+    $this->actingAs($pengurus)
+        ->patch(route('dashboard.pengurus.users.status', 'USR-001'))
+        ->assertStatus(409);
+
+    $this->patch(route('dashboard.pengurus.users.status', 'USR-MANAGED'))
+        ->assertRedirect(route('dashboard.pengurus.users'));
+    $this->assertDatabaseHas('users', ['user_id' => 'USR-MANAGED', 'is_active' => false]);
+
+    auth()->logout();
+    $this->post(route('login.submit'), [
+        'email' => 'peserta@example.com',
+        'password' => 'password123',
+        'role' => 'Peserta',
+    ])->assertSessionHasErrors('email');
+
+    $this->actingAs($pengurus)
+        ->patch(route('dashboard.pengurus.users.status', 'USR-MANAGED'))
+        ->assertRedirect(route('dashboard.pengurus.users'));
+    $this->assertDatabaseHas('users', ['user_id' => 'USR-MANAGED', 'is_active' => true]);
+
+    $this->patch(route('dashboard.pengurus.users.status', 'USR-MANAGED'))
+        ->assertRedirect(route('dashboard.pengurus.users'));
+    $inactiveUser = \App\Models\User::query()->findOrFail('USR-MANAGED');
+    $this->actingAs($inactiveUser)
+        ->get(route('dashboard.peserta'))
+        ->assertRedirect(route('login'))
+        ->assertSessionHasErrors('email');
+});
+
+test('pengurus can set exactly one active mentoring period from settings', function () {
+    createTestUser('Pengurus KSM', 'pengurus@example.com', 'Pengurus Utama');
+    DB::table('mentoring_periods')->insert([
+        [
+            'period_id' => 'PERIOD-OLD',
+            'period_name' => 'Semester Ganjil 2026',
+            'is_active' => true,
+            'start_date' => '2026-01-01',
+            'end_date' => '2026-06-30',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+        [
+            'period_id' => 'PERIOD-NEW',
+            'period_name' => 'Semester Genap 2026',
+            'is_active' => false,
+            'start_date' => '2026-07-01',
+            'end_date' => '2026-12-31',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ],
+    ]);
+
+    $this->actingAs(\App\Models\User::query()->findOrFail('USR-001'))
+        ->get(route('dashboard.pengurus.settings'))
+        ->assertOk()
+        ->assertSee('Pengaturan')
+        ->assertSee('Periode Mentoring Aktif')
+        ->assertSee('Semester Ganjil 2026')
+        ->assertSee('Semester Genap 2026');
+
+    $this->put(route('dashboard.pengurus.settings.period'), ['period_id' => 'PERIOD-NEW'])
+        ->assertRedirect(route('dashboard.pengurus.settings'))
+        ->assertSessionHas('status', 'Periode mentoring aktif berhasil diperbarui.');
+
+    $this->assertDatabaseHas('mentoring_periods', ['period_id' => 'PERIOD-OLD', 'is_active' => false]);
+    $this->assertDatabaseHas('mentoring_periods', ['period_id' => 'PERIOD-NEW', 'is_active' => true]);
+    $this->assertDatabaseHas('audit_logs', [
+        'user_id' => 'USR-001',
+        'action' => 'ACTIVE_PERIOD_CHANGED',
+    ]);
 });
 
 test('a mentor can review a queued project and submit a weighted rubric', function () {
@@ -658,6 +943,94 @@ test('a mentor can review a queued project and submit a weighted rubric', functi
     $this->assertSame(40, $rubricScores['technical_quality']['weight']);
     $this->assertSame(30, $rubricScores['creative_quality']['weight']);
     $this->assertSame(1, $rubricScores['publication_readiness']['score']);
+});
+
+test('authenticated users can view submitted project thumbnails without exposing private project files', function () {
+    [$mentor, $participant, $projectId] = createMentorReviewFixture();
+    $thumbnailPath = "projects/{$projectId}/thumbnail.png";
+    $privateFilePath = "projects/{$projectId}/documents/private.pdf";
+
+    DB::table('users')->insert([
+        'user_id' => 'USR-OTHER-PARTICIPANT',
+        'role_id' => 'ROL-002',
+        'name' => 'Peserta Lain',
+        'email' => 'peserta-lain@example.com',
+        'password_hash' => Hash::make('password123'),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    DB::table('roles')->insert([
+        'role_id' => 'ROL-003',
+        'role_name' => 'Pengurus KSM',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    DB::table('users')->insert([
+        'user_id' => 'USR-PENGURUS',
+        'role_id' => 'ROL-003',
+        'name' => 'Pengurus',
+        'email' => 'pengurus@example.com',
+        'password_hash' => Hash::make('password123'),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    Storage::fake('public');
+    Storage::disk('public')->put($thumbnailPath, 'thumbnail-content');
+    Storage::disk('public')->put($privateFilePath, 'private-content');
+    DB::table('projects')
+        ->where('project_id', $projectId)
+        ->update(['thumbnail_url' => $thumbnailPath]);
+
+    $this->actingAs($mentor)
+        ->get(route('dashboard.mentor.project.review', $projectId))
+        ->assertOk()
+        ->assertSee(route('media.show', ['path' => $thumbnailPath], false), false)
+        ->assertSee('Thumbnail Petualangan Nusantara');
+
+    Storage::disk('public')->assertExists($thumbnailPath);
+
+    $this->get(route('media.show', ['path' => $thumbnailPath]))
+        ->assertOk();
+
+    $this->actingAs($participant)
+        ->get(route('media.show', ['path' => $thumbnailPath]))
+        ->assertOk();
+
+    $this->actingAs(\App\Models\User::query()->findOrFail('USR-002'))
+        ->get(route('media.show', ['path' => $thumbnailPath]))
+        ->assertOk();
+
+    $this->actingAs(\App\Models\User::query()->findOrFail('USR-OTHER-PARTICIPANT'))
+        ->get(route('media.show', ['path' => $thumbnailPath]))
+        ->assertOk();
+
+    $this->actingAs(\App\Models\User::query()->findOrFail('USR-PENGURUS'))
+        ->get(route('media.show', ['path' => $thumbnailPath]))
+        ->assertOk();
+
+    $this->actingAs(\App\Models\User::query()->findOrFail('USR-OTHER-PARTICIPANT'))
+        ->get(route('media.show', ['path' => $privateFilePath]))
+        ->assertForbidden();
+
+    $this->app['auth']->guard()->logout();
+    $this->get(route('media.show', ['path' => $thumbnailPath]))
+        ->assertForbidden();
+
+    DB::table('projects')->where('project_id', $projectId)->update(['status' => 'Draft']);
+
+    $this->actingAs(\App\Models\User::query()->findOrFail('USR-002'))
+        ->get(route('media.show', ['path' => $thumbnailPath]))
+        ->assertOk();
+
+    $this->actingAs(\App\Models\User::query()->findOrFail('USR-OTHER-PARTICIPANT'))
+        ->get(route('media.show', ['path' => $thumbnailPath]))
+        ->assertForbidden();
+
+    DB::table('projects')->where('project_id', $projectId)->update(['status' => 'Published']);
+
+    $this->get(route('media.show', ['path' => $thumbnailPath]))
+        ->assertOk();
 });
 
 test('mentor review requires each rubric score, feedback, and a valid decision', function () {

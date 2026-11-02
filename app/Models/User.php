@@ -8,6 +8,10 @@ class User extends Authenticatable {
     protected $primaryKey = 'user_id';
     protected $keyType = 'string';
     public $incrementing = false;
+    protected $casts = [
+        'is_active' => 'boolean',
+        'profile_data' => 'array',
+    ];
     protected $fillable = ['role_id', 'name', 'email', 'password_hash', 'profile_data'];
     protected $hidden = ['password_hash']; // Laravel Auth bawaan butuh penyesuaian jika kolom bukan 'password'
     

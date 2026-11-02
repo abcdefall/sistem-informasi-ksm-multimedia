@@ -46,6 +46,11 @@ class Project extends Model
         return $this->belongsTo(MentoringField::class, 'field_id', 'field_id');
     }
 
+    public function period()
+    {
+        return $this->belongsTo(MentoringPeriod::class, 'period_id', 'period_id');
+    }
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by', 'user_id');
