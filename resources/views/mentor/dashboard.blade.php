@@ -21,7 +21,7 @@
             <header class="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                 <div>
                     <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Antrian Review Masuk</h1>
-                    <p class="mt-1 max-w-2xl text-sm text-slate-500">Tinjau pengajuan dan kirim feedback akademik untuk proyek capstone mahasiswa bimbingan.</p>
+                    <p class="mt-1 max-w-2xl text-sm text-slate-500">Tinjau pengajuan dan kirim feedback akademik untuk proyek capstone.</p>
                 </div>
                 <div class="inline-flex items-center gap-2 self-start rounded-full border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs font-medium text-slate-600 sm:self-center">
                     <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
