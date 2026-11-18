@@ -743,10 +743,11 @@ class HomeController extends Controller
         ]);
 
         DB::transaction(function () use ($validated): void {
-            $period = DB::table('mentoring_periods')
-                ->where('period_id', $validated['period_id'])
+            $periods = DB::table('mentoring_periods')
+                ->orderBy('period_id')
                 ->lockForUpdate()
-                ->first();
+                ->get(['period_id', 'period_name']);
+            $period = $periods->firstWhere('period_id', $validated['period_id']);
             abort_unless($period, 404);
 
             DB::table('mentoring_periods')->update(['is_active' => false, 'updated_at' => now()]);
@@ -758,7 +759,70 @@ class HomeController extends Controller
                 'ACTIVE_PERIOD_CHANGED',
                 'Mengatur periode mentoring aktif menjadi "'.$period->period_name.'".',
             );
+        }, 5);
+    public function storePengurusPeriod(Request $request): RedirectResponse
+    {
+        $this->authorizePengurus();
+        $validated = $this->validateMentoringPeriod($request, 'periodCreate');
+
+        DB::transaction(function () use ($validated): void {
+            do {
+                $periodId = 'PER-'.Str::upper(Str::random(16));
+            } while (DB::table('mentoring_periods')->where('period_id', $periodId)->exists());
+
+            DB::table('mentoring_periods')->insert([
+                'period_id' => $periodId,
+                'period_name' => $validated['period_name'],
+                'is_active' => false,
+                'start_date' => $validated['start_date'],
+                'end_date' => $validated['end_date'],
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $this->recordPengurusAudit(
+                'MENTORING_PERIOD_CREATED',
+                'Menambahkan periode mentoring "'.$validated['period_name'].'" ('.$periodId.').',
+            );
         });
+
+        return redirect()
+            ->route('dashboard.pengurus.settings')
+            ->with('status', 'Periode mentoring baru berhasil ditambahkan.');
+    }
+
+    public function updatePengurusPeriod(Request $request, string $periodId): RedirectResponse
+    {
+        $this->authorizePengurus();
+        $validated = $this->validateMentoringPeriod($request, 'periodEdit_'.$periodId, $periodId);
+
+        DB::transaction(function () use ($periodId, $validated): void {
+            $period = DB::table('mentoring_periods')
+                ->where('period_id', $periodId)
+                ->lockForUpdate()
+                ->first();
+            abort_unless($period, 404);
+
+            DB::table('mentoring_periods')
+                ->where('period_id', $periodId)
+                ->update([
+                    'period_name' => $validated['period_name'],
+                    'start_date' => $validated['start_date'],
+                    'end_date' => $validated['end_date'],
+                    'updated_at' => now(),
+                ]);
+
+            $this->recordPengurusAudit(
+                'MENTORING_PERIOD_UPDATED',
+                'Memperbarui detail periode mentoring "'.$validated['period_name'].'" ('.$periodId.').',
+            );
+        }, 5);
+
+        return redirect()
+            ->route('dashboard.pengurus.settings')
+            ->with('status', 'Detail periode mentoring berhasil diperbarui.');
+    }
+
 
         return redirect()
             ->route('dashboard.pengurus.settings')
@@ -789,6 +853,30 @@ class HomeController extends Controller
             ->get();
         $period = DB::table('mentoring_periods')->where('period_id', $project->period_id)->first();
         $latestReview = DB::table('reviews')
+    private function validateMentoringPeriod(Request $request, string $errorBag, ?string $periodId = null): array
+    {
+        $periodName = $request->input('period_name');
+        if (is_string($periodName)) {
+            $request->merge(['period_name' => trim($periodName)]);
+        }
+
+        $uniqueName = Rule::unique('mentoring_periods', 'period_name');
+        if ($periodId !== null) {
+            $uniqueName->ignore($periodId, 'period_id');
+        }
+
+        return $request->validateWithBag($errorBag, [
+            'period_name' => ['required', 'string', 'max:255', $uniqueName],
+            'start_date' => ['required', 'date_format:Y-m-d'],
+            'end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
+        ], [
+            'period_name.unique' => 'Nama periode sudah digunakan.',
+            'start_date.date_format' => 'Tanggal mulai harus berupa tanggal yang valid.',
+            'end_date.date_format' => 'Tanggal selesai harus berupa tanggal yang valid.',
+            'end_date.after_or_equal' => 'Tanggal selesai harus sama dengan atau setelah tanggal mulai.',
+        ]);
+    }
+
             ->join('users', 'users.user_id', '=', 'reviews.reviewer_id')
             ->where('reviews.project_id', $projectId)
             ->orderByDesc('reviews.created_at')

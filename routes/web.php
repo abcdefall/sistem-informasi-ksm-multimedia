@@ -76,5 +76,7 @@ Route::middleware(['auth', 'active.user'])->group(function () {
     Route::put('/dashboard/peserta/project/{projectId}', [HomeController::class, 'updateProject'])->name('dashboard.peserta.project.update');
     Route::get('/dashboard/peserta/projects/{project}', [HomeController::class, 'showParticipantProject'])->name('dashboard.peserta.project.show');
     Route::post('/dashboard/peserta/projects/{project}/resubmit', [HomeController::class, 'resubmitProject'])->name('dashboard.peserta.project.resubmit');
+    Route::post('/dashboard/pengurus/settings/periods', [HomeController::class, 'storePengurusPeriod'])->name('dashboard.pengurus.settings.periods.store');
+    Route::put('/dashboard/pengurus/settings/periods/{periodId}', [HomeController::class, 'updatePengurusPeriod'])->name('dashboard.pengurus.settings.periods.update');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 });

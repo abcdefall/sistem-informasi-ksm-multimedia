@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Project;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -900,7 +902,184 @@ test('pengurus can set exactly one active mentoring period from settings', funct
     $this->assertDatabaseHas('mentoring_periods', ['period_id' => 'PERIOD-NEW', 'is_active' => true]);
     $this->assertDatabaseHas('audit_logs', [
         'user_id' => 'USR-001',
+    expect(DB::table('mentoring_periods')->where('is_active', true)->count())->toBe(1);
         'action' => 'ACTIVE_PERIOD_CHANGED',
+    ]);
+test('pengurus can add a new inactive mentoring period', function () {
+    createTestUser('Pengurus KSM', 'pengurus@example.com', 'Pengurus Utama');
+    DB::table('mentoring_periods')->insert([
+        'period_id' => 'PERIOD-ACTIVE',
+        'period_name' => 'Periode Aktif',
+        'is_active' => true,
+        'start_date' => '2026-01-01',
+        'end_date' => '2026-06-30',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $this->actingAs(User::query()->findOrFail('USR-001'))
+        ->post(route('dashboard.pengurus.settings.periods.store'), [
+            'period_name' => '  Periode Baru  ',
+            'start_date' => '2027-01-01',
+            'end_date' => '2027-06-30',
+        ])
+        ->assertRedirect(route('dashboard.pengurus.settings'))
+        ->assertSessionHas('status', 'Periode mentoring baru berhasil ditambahkan.');
+
+    $period = DB::table('mentoring_periods')->where('period_name', 'Periode Baru')->first();
+    expect($period)->not->toBeNull();
+    expect($period->period_id)->toStartWith('PER-');
+    expect(strlen($period->period_id))->toBe(20);
+    $this->assertDatabaseHas('mentoring_periods', [
+        'period_id' => $period->period_id,
+        'is_active' => false,
+        'start_date' => '2027-01-01',
+        'end_date' => '2027-06-30',
+    ]);
+    expect($period->created_at)->not->toBeNull();
+    expect(DB::table('mentoring_periods')->where('is_active', true)->count())->toBe(1);
+    $this->assertDatabaseHas('audit_logs', [
+        'user_id' => 'USR-001',
+        'action' => 'MENTORING_PERIOD_CREATED',
+    ]);
+});
+
+});
+
+test('pengurus can edit a period without changing projects that reference it', function () {
+    createTestUser('Pengurus KSM', 'pengurus@example.com', 'Pengurus Utama');
+    DB::table('mentoring_fields')->insert([
+        'field_id' => 'FLD-001',
+        'field_name' => 'Game Dev',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    DB::table('mentoring_periods')->insert([
+        'period_id' => 'PERIOD-ACTIVE',
+        'period_name' => 'Nama Lama',
+        'is_active' => true,
+        'start_date' => '2026-01-01',
+        'end_date' => '2026-06-30',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    DB::table('projects')->insert([
+        'project_id' => 'PROJ-PERIOD-001',
+        'field_id' => 'FLD-001',
+        'period_id' => 'PERIOD-ACTIVE',
+        'created_by' => 'USR-001',
+        'title' => 'Project Lama',
+        'description' => 'Project yang harus mempertahankan seluruh metadata.',
+        'project_link' => 'https://example.test/project',
+        'status' => 'Published',
+        'submitted_at' => '2026-02-01 10:00:00',
+        'published_at' => '2026-03-01 10:00:00',
+        'created_at' => '2026-01-15 10:00:00',
+        'updated_at' => '2026-03-01 10:00:00',
+    ]);
+
+    $this->actingAs(User::query()->findOrFail('USR-001'))
+        ->put(route('dashboard.pengurus.settings.periods.update', 'PERIOD-ACTIVE'), [
+            'period_name' => 'Nama Periode Diperbarui',
+            'start_date' => '2026-01-15',
+            'end_date' => '2026-07-15',
+        ])
+        ->assertRedirect(route('dashboard.pengurus.settings'))
+        ->assertSessionHas('status', 'Detail periode mentoring berhasil diperbarui.');
+
+    $this->assertDatabaseCount('mentoring_periods', 1);
+    $this->assertDatabaseHas('mentoring_periods', [
+        'period_id' => 'PERIOD-ACTIVE',
+        'period_name' => 'Nama Periode Diperbarui',
+        'is_active' => true,
+        'start_date' => '2026-01-15',
+        'end_date' => '2026-07-15',
+    ]);
+    $this->assertDatabaseHas('projects', [
+        'project_id' => 'PROJ-PERIOD-001',
+        'period_id' => 'PERIOD-ACTIVE',
+        'status' => 'Published',
+        'submitted_at' => '2026-02-01 10:00:00',
+        'published_at' => '2026-03-01 10:00:00',
+        'updated_at' => '2026-03-01 10:00:00',
+    ]);
+
+    $project = Project::query()->with('period')->findOrFail('PROJ-PERIOD-001');
+    expect($project->period->period_name)->toBe('Nama Periode Diperbarui');
+    expect($project->period->start_date)->toBe('2026-01-15');
+    expect($project->period->end_date)->toBe('2026-07-15');
+    $this->assertDatabaseHas('audit_logs', [
+        'user_id' => 'USR-001',
+        'action' => 'MENTORING_PERIOD_UPDATED',
+    ]);
+});
+
+test('period create and edit reject duplicate names and invalid date ranges', function () {
+    createTestUser('Pengurus KSM', 'pengurus@example.com', 'Pengurus Utama');
+    DB::table('mentoring_periods')->insert([
+        'period_id' => 'PERIOD-EXISTING',
+        'period_name' => 'Nama Sama',
+        'is_active' => true,
+        'start_date' => '2026-01-01',
+        'end_date' => '2026-06-30',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    $pengurus = User::query()->findOrFail('USR-001');
+
+    $this->actingAs($pengurus)
+        ->post(route('dashboard.pengurus.settings.periods.store'), [
+            'period_name' => 'Nama Sama',
+            'start_date' => '2026-12-01',
+            'end_date' => '2026-11-30',
+        ])
+        ->assertSessionHasErrorsIn('periodCreate', ['period_name', 'end_date']);
+
+    $this->put(route('dashboard.pengurus.settings.periods.update', 'PERIOD-EXISTING'), [
+        'period_name' => 'Nama Sama',
+        'start_date' => '2026-12-01',
+        'end_date' => '2026-11-30',
+    ])->assertSessionHasErrorsIn('periodEdit_PERIOD-EXISTING', ['end_date']);
+
+    $this->assertDatabaseCount('mentoring_periods', 1);
+    $this->assertDatabaseHas('mentoring_periods', [
+        'period_id' => 'PERIOD-EXISTING',
+        'period_name' => 'Nama Sama',
+        'start_date' => '2026-01-01',
+        'end_date' => '2026-06-30',
+    ]);
+});
+
+test('only pengurus can create and edit mentoring periods', function () {
+    createTestUser();
+    DB::table('mentoring_periods')->insert([
+        'period_id' => 'PERIOD-EXISTING',
+        'period_name' => 'Periode Existing',
+        'is_active' => true,
+        'start_date' => '2026-01-01',
+        'end_date' => '2026-06-30',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $this->actingAs(User::query()->findOrFail('USR-001'))
+        ->post(route('dashboard.pengurus.settings.periods.store'), [
+            'period_name' => 'Tidak Diizinkan',
+            'start_date' => '2027-01-01',
+            'end_date' => '2027-06-30',
+        ])
+        ->assertForbidden();
+
+    $this->put(route('dashboard.pengurus.settings.periods.update', 'PERIOD-EXISTING'), [
+        'period_name' => 'Tidak Diizinkan',
+        'start_date' => '2027-01-01',
+        'end_date' => '2027-06-30',
+    ])->assertForbidden();
+
+    $this->assertDatabaseCount('mentoring_periods', 1);
+    $this->assertDatabaseHas('mentoring_periods', [
+        'period_id' => 'PERIOD-EXISTING',
+        'period_name' => 'Periode Existing',
     ]);
 });
 
