@@ -1,23 +1,27 @@
 @extends('layouts.app')
 
-@section('title', $project->title . ' - Showcase KSM Multimedia')
+@section('title', $publishedSnapshot['title'] . ' - Showcase KSM Multimedia')
 
 @section('content')
+    @php
+        $displayMembers = collect($publishedSnapshot['team'] ?? $members);
+        $displayTools = collect($publishedSnapshot['tools'] ?? $tools);
+    @endphp
     <main class="showcase-detail-page">
         <div class="showcase-detail-container">
             <nav class="showcase-detail-breadcrumb" aria-label="Breadcrumb">
                 <a href="{{ route('showcase') }}">Showcase</a>
                 <span aria-hidden="true">&rsaquo;</span>
-                <span>{{ $project->mentoringField?->field_name ?? 'Multimedia' }}</span>
+                <span>{{ $publishedSnapshot['field_name'] ?? 'Multimedia' }}</span>
                 <span aria-hidden="true">&rsaquo;</span>
-                <span class="showcase-detail-breadcrumb-current">{{ $project->title }}</span>
+                <span class="showcase-detail-breadcrumb-current">{{ $publishedSnapshot['title'] }}</span>
             </nav>
 
             <div class="showcase-detail-grid">
                 <article class="showcase-detail-main">
                     <div class="showcase-detail-image">
-                        @if ($project->thumbnail_display_url)
-                            <img src="{{ $project->thumbnail_display_url }}" alt="Pratinjau {{ $project->title }}">
+                        @if ($project->published_thumbnail_url)
+                            <img src="{{ $project->published_thumbnail_url }}" alt="Pratinjau {{ $publishedSnapshot['title'] }}">
                         @else
                             <div class="showcase-detail-image-placeholder" role="img" aria-label="Thumbnail project belum tersedia">
                                 <span>Thumbnail project belum tersedia</span>
@@ -34,29 +38,33 @@
 
                     <section class="showcase-detail-description">
                         <h2>Deskripsi Singkat</h2>
-                        <div>{{ $project->description ?: 'Belum ada deskripsi untuk project ini.' }}</div>
+                        <div>{{ $publishedSnapshot['description'] ?: 'Belum ada deskripsi untuk project ini.' }}</div>
                     </section>
                 </article>
 
                 <aside class="showcase-detail-sidebar">
                     <div class="showcase-detail-summary">
                         <div class="showcase-detail-badges">
-                            <span class="showcase-detail-category">{{ $project->mentoringField?->field_name ?? 'Multimedia' }}</span>
+                            <span class="showcase-detail-category">{{ $publishedSnapshot['field_name'] ?? 'Multimedia' }}</span>
                             <span class="showcase-detail-verified">Project Terpublikasi</span>
                         </div>
-                        <h1>{{ $project->title }}</h1>
+                        <h1>{{ $publishedSnapshot['title'] }}</h1>
 
                         <section class="showcase-detail-info">
                             <h2>Tim Pembuat</h2>
-                            @if ($members->isNotEmpty())
+                            @if ($displayMembers->isNotEmpty())
                                 <ul class="showcase-detail-team">
-                                    @foreach ($members as $member)
+                                    @foreach ($displayMembers as $member)
+                                        @php
+                                            $memberName = is_string($member) ? $member : data_get($member, 'name');
+                                            $memberRole = data_get($member, 'member_role');
+                                        @endphp
                                         <li>
-                                            <span class="showcase-detail-avatar" aria-hidden="true">{{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($member->name, 0, 2)) }}</span>
+                                            <span class="showcase-detail-avatar" aria-hidden="true">{{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($memberName, 0, 2)) }}</span>
                                             <span>
-                                                <strong>{{ $member->name }}</strong>
-                                                @if ($member->member_role)
-                                                    <small>{{ $member->member_role }}</small>
+                                                <strong>{{ $memberName }}</strong>
+                                                @if ($memberRole)
+                                                    <small>{{ $memberRole }}</small>
                                                 @endif
                                             </span>
                                         </li>
@@ -69,14 +77,14 @@
 
                         <section class="showcase-detail-info">
                             <h2>Periode Akademik</h2>
-                            <p class="showcase-detail-info-value">{{ $project->period?->period_name ?? 'Tidak tersedia' }}</p>
+                            <p class="showcase-detail-info-value">{{ $publishedSnapshot['period_name'] ?? 'Tidak tersedia' }}</p>
                         </section>
 
-                        @if ($tools->isNotEmpty())
+                        @if ($displayTools->isNotEmpty())
                             <section class="showcase-detail-info">
                                 <h2>Tools Digunakan</h2>
                                 <ul class="showcase-detail-tools">
-                                    @foreach ($tools as $tool)
+                                    @foreach ($displayTools as $tool)
                                         <li>{{ $tool }}</li>
                                     @endforeach
                                 </ul>

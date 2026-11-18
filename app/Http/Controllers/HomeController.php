@@ -4,14 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\MentoringField;
 use App\Models\Project;
+use App\Models\ProjectVersion;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -116,10 +117,10 @@ class HomeController extends Controller
         ]);
 
         $projectsQuery = Project::query()
-            ->with(['mentoringField', 'period', 'creator'])
+            ->with(['mentoringField', 'period', 'creator', 'publishedVersion'])
             ->where('status', 'Published');
 
-        if (!empty($filters['q'])) {
+        if (! empty($filters['q'])) {
             $search = $filters['q'];
             $projectsQuery->where(function (EloquentBuilder $query) use ($search): void {
                 $query->where('title', 'like', "%{$search}%")
@@ -136,8 +137,23 @@ class HomeController extends Controller
             });
         }
 
-        if (!empty($filters['field'])) {
-            $projectsQuery->where('field_id', $filters['field']);
+        if (! empty($filters['field'])) {
+            $fieldId = $filters['field'];
+            $projectsQuery->where(function (EloquentBuilder $query) use ($fieldId): void {
+                $query->whereHas(
+                    'publishedVersion',
+                    fn (EloquentBuilder $versionQuery) => $versionQuery->where('field_id_snapshot', $fieldId),
+                )->orWhere(function (EloquentBuilder $legacyQuery) use ($fieldId): void {
+                    $legacyQuery->where('field_id', $fieldId)
+                        ->where(function (EloquentBuilder $snapshotQuery): void {
+                            $snapshotQuery->whereDoesntHave('publishedVersion')
+                                ->orWhereHas(
+                                    'publishedVersion',
+                                    fn (EloquentBuilder $versionQuery) => $versionQuery->whereNull('field_id_snapshot'),
+                                );
+                        });
+                });
+            });
         }
 
         $projects = $projectsQuery
@@ -171,7 +187,7 @@ class HomeController extends Controller
     public function showcaseProject(string $projectId)
     {
         $project = Project::query()
-            ->with(['mentoringField', 'period', 'creator'])
+            ->with(['mentoringField', 'period', 'creator', 'publishedVersion'])
             ->where('status', 'Published')
             ->findOrFail($projectId);
 
@@ -186,14 +202,16 @@ class HomeController extends Controller
             ->orderBy('tool_name')
             ->pluck('tool_name');
 
-        $projectUrl = filter_var($project->project_link, FILTER_VALIDATE_URL)
-            && in_array(parse_url($project->project_link, PHP_URL_SCHEME), ['http', 'https'], true)
-                ? $project->project_link
+        $publishedSnapshot = $project->published_snapshot;
+        $projectUrl = filter_var($publishedSnapshot['project_link'], FILTER_VALIDATE_URL)
+            && in_array(parse_url($publishedSnapshot['project_link'], PHP_URL_SCHEME), ['http', 'https'], true)
+                ? $publishedSnapshot['project_link']
                 : null;
 
         return response()
             ->view('showcase-detail', [
                 'project' => $project,
+                'publishedSnapshot' => $publishedSnapshot,
                 'members' => $members,
                 'tools' => $tools,
                 'projectUrl' => $projectUrl,
@@ -340,8 +358,8 @@ class HomeController extends Controller
                 'reviews.review_id',
                 'reviews.project_id',
                 'reviews.comment',
+                'reviews.score',
                 'reviews.rating',
-                'reviews.rubric_scores',
                 'reviews.created_at',
                 'projects.title as project_title',
                 'mentoring_fields.field_name',
@@ -481,6 +499,7 @@ class HomeController extends Controller
             ->orderByDesc('reviews.created_at')
             ->get([
                 'reviews.project_id',
+                'reviews.score',
                 'reviews.rating',
                 'reviews.comment',
                 'reviews.created_at',
@@ -517,6 +536,7 @@ class HomeController extends Controller
             ->orderByDesc('reviews.created_at')
             ->limit(10)
             ->get([
+                'reviews.score',
                 'reviews.rating',
                 'reviews.created_at',
                 'users.name as reviewer_name',
@@ -525,7 +545,9 @@ class HomeController extends Controller
             $activities->push([
                 'type' => 'review',
                 'title' => $review->reviewer_name.' menyelesaikan evaluasi mentor untuk "'.$review->project_title.'".',
-                'detail' => $review->rating ? 'Skor rubrik: '.$review->rating.'/5' : 'Review tersimpan',
+                'detail' => $review->score !== null
+                    ? 'Nilai akhir: '.$review->score.'/100'
+                    : ($review->rating !== null ? 'Nilai akhir legacy: '.((int) $review->rating * 20).'/100' : 'Review tersimpan'),
                 'user' => $review->reviewer_name,
                 'created_at' => $review->created_at,
             ]);
@@ -547,7 +569,9 @@ class HomeController extends Controller
             'pendingApprovalCount' => Project::where('status', 'Approved')->count(),
             'reviewingProjectCount' => Project::whereIn('status', ['Submitted', 'In Review', 'Resubmitted'])->count(),
             'publishedProjectCount' => Project::where('status', 'Published')->count(),
-            'curationScore' => DB::table('reviews')->whereNotNull('rating')->avg('rating'),
+            'curationScore' => DB::table('reviews')
+                ->where(fn (Builder $query) => $query->whereNotNull('score')->orWhereNotNull('rating'))
+                ->avg(DB::raw('COALESCE(score, rating * 20)')),
             'activePeriod' => DB::table('mentoring_periods')
                 ->where('is_active', true)
                 ->orderByDesc('start_date')
@@ -735,31 +759,6 @@ class HomeController extends Controller
         ]);
     }
 
-    public function updatePengurusActivePeriod(Request $request): RedirectResponse
-    {
-        $this->authorizePengurus();
-        $validated = $request->validate([
-            'period_id' => ['required', 'string', Rule::exists('mentoring_periods', 'period_id')],
-        ]);
-
-        DB::transaction(function () use ($validated): void {
-            $periods = DB::table('mentoring_periods')
-                ->orderBy('period_id')
-                ->lockForUpdate()
-                ->get(['period_id', 'period_name']);
-            $period = $periods->firstWhere('period_id', $validated['period_id']);
-            abort_unless($period, 404);
-
-            DB::table('mentoring_periods')->update(['is_active' => false, 'updated_at' => now()]);
-            DB::table('mentoring_periods')
-                ->where('period_id', $period->period_id)
-                ->update(['is_active' => true, 'updated_at' => now()]);
-
-            $this->recordPengurusAudit(
-                'ACTIVE_PERIOD_CHANGED',
-                'Mengatur periode mentoring aktif menjadi "'.$period->period_name.'".',
-            );
-        }, 5);
     public function storePengurusPeriod(Request $request): RedirectResponse
     {
         $this->authorizePengurus();
@@ -823,36 +822,37 @@ class HomeController extends Controller
             ->with('status', 'Detail periode mentoring berhasil diperbarui.');
     }
 
+    public function updatePengurusActivePeriod(Request $request): RedirectResponse
+    {
+        $this->authorizePengurus();
+        $validated = $request->validate([
+            'period_id' => ['required', 'string', Rule::exists('mentoring_periods', 'period_id')],
+        ]);
+
+        DB::transaction(function () use ($validated): void {
+            $periods = DB::table('mentoring_periods')
+                ->orderBy('period_id')
+                ->lockForUpdate()
+                ->get(['period_id', 'period_name']);
+            $period = $periods->firstWhere('period_id', $validated['period_id']);
+            abort_unless($period, 404);
+
+            DB::table('mentoring_periods')->update(['is_active' => false, 'updated_at' => now()]);
+            DB::table('mentoring_periods')
+                ->where('period_id', $period->period_id)
+                ->update(['is_active' => true, 'updated_at' => now()]);
+
+            $this->recordPengurusAudit(
+                'ACTIVE_PERIOD_CHANGED',
+                'Mengatur periode mentoring aktif menjadi "'.$period->period_name.'".',
+            );
+        }, 5);
 
         return redirect()
             ->route('dashboard.pengurus.settings')
             ->with('status', 'Periode mentoring aktif berhasil diperbarui.');
     }
 
-    public function showPengurusApproval(string $projectId)
-    {
-        $this->authorizePengurus();
-
-        $project = Project::query()
-            ->with(['mentoringField', 'creator'])
-            ->where('project_id', $projectId)
-            ->whereIn('status', ['Approved', 'Published'])
-            ->firstOrFail();
-        $members = DB::table('project_members')
-            ->join('users', 'users.user_id', '=', 'project_members.user_id')
-            ->where('project_members.project_id', $projectId)
-            ->orderBy('users.name')
-            ->get(['users.name', 'users.email', 'project_members.member_role']);
-        $tools = DB::table('project_tools')
-            ->where('project_id', $projectId)
-            ->orderBy('tool_name')
-            ->pluck('tool_name');
-        $files = DB::table('project_files')
-            ->where('project_id', $projectId)
-            ->latest('created_at')
-            ->get();
-        $period = DB::table('mentoring_periods')->where('period_id', $project->period_id)->first();
-        $latestReview = DB::table('reviews')
     private function validateMentoringPeriod(Request $request, string $errorBag, ?string $periodId = null): array
     {
         $periodName = $request->input('period_name');
@@ -877,22 +877,75 @@ class HomeController extends Controller
         ]);
     }
 
+    public function showPengurusApproval(string $projectId)
+    {
+        $this->authorizePengurus();
+
+        $project = Project::query()
+            ->with(['mentoringField', 'creator'])
+            ->where('project_id', $projectId)
+            ->whereIn('status', ['Approved', 'Published'])
+            ->firstOrFail();
+        $members = DB::table('project_members')
+            ->join('users', 'users.user_id', '=', 'project_members.user_id')
+            ->where('project_members.project_id', $projectId)
+            ->orderBy('users.name')
+            ->get(['users.name', 'users.email', 'project_members.member_role']);
+        $tools = DB::table('project_tools')
+            ->where('project_id', $projectId)
+            ->orderBy('tool_name')
+            ->pluck('tool_name');
+        $period = DB::table('mentoring_periods')->where('period_id', $project->period_id)->first();
+        $latestVersion = ProjectVersion::sortChronologically(DB::table('project_versions')
+            ->where('project_id', $projectId)
+            ->get())->last();
+        $files = $latestVersion
+            ? DB::table('project_version_files')
+                ->where('version_id', $latestVersion->version_id)
+                ->orderBy('created_at')
+                ->get()
+            : collect();
+        if ($files->isEmpty() && $latestVersion?->title_snapshot === null) {
+            $files = DB::table('project_files')
+                ->where('project_id', $projectId)
+                ->orderBy('created_at')
+                ->get(['file_path', 'file_name as file_name_snapshot']);
+        }
+        $approvalSnapshot = [
+            'title' => $latestVersion?->title_snapshot ?? $project->title,
+            'description' => $latestVersion?->description_snapshot ?? $project->description,
+            'field_name' => $latestVersion?->field_name_snapshot ?? $project->mentoringField?->field_name,
+            'period_name' => $latestVersion?->period_name_snapshot ?? $period?->period_name,
+            'project_link' => $latestVersion?->project_link_snapshot ?? $project->project_link,
+            'thumbnail_path' => $latestVersion?->title_snapshot !== null
+                ? $latestVersion->thumbnail_path_snapshot
+                : $project->thumbnail_url,
+        ];
+        $projectUrl = filter_var($approvalSnapshot['project_link'], FILTER_VALIDATE_URL)
+            && in_array(parse_url($approvalSnapshot['project_link'], PHP_URL_SCHEME), ['http', 'https'], true)
+                ? $approvalSnapshot['project_link']
+                : null;
+        $latestReview = DB::table('reviews')
             ->join('users', 'users.user_id', '=', 'reviews.reviewer_id')
+            ->leftJoin('project_versions', 'project_versions.version_id', '=', 'reviews.version_id')
             ->where('reviews.project_id', $projectId)
             ->orderByDesc('reviews.created_at')
             ->first([
                 'reviews.comment',
+                'reviews.score',
                 'reviews.rating',
-                'reviews.rubric_scores',
+                'reviews.version_id',
+                'reviews.decision',
                 'reviews.created_at',
                 'users.name as reviewer_name',
+                'project_versions.version_number as review_version_number',
             ]);
+        $versions = ProjectVersion::sortChronologically(DB::table('project_versions')
+            ->where('project_id', $projectId)
+            ->get());
         $publicationApprover = $project->publication_approved_by
             ? User::query()->find($project->publication_approved_by)
             : null;
-        $rubricScores = $latestReview?->rubric_scores
-            ? json_decode($latestReview->rubric_scores, true, flags: JSON_THROW_ON_ERROR)
-            : [];
 
         return $this->privateView('pengurus.approval-detail', [
             'project' => $project,
@@ -900,9 +953,12 @@ class HomeController extends Controller
             'tools' => $tools,
             'files' => $files,
             'period' => $period,
+            'latestVersion' => $latestVersion,
+            'approvalSnapshot' => $approvalSnapshot,
+            'projectUrl' => $projectUrl,
             'latestReview' => $latestReview,
+            'versions' => $versions,
             'publicationApprover' => $publicationApprover,
-            'rubricScores' => $rubricScores,
             'pendingApprovalCount' => Project::where('status', 'Approved')->count(),
             'activeMenu' => 'approvals',
         ]);
@@ -913,56 +969,29 @@ class HomeController extends Controller
         $this->authorizePengurus();
 
         $validated = $request->validate([
-            'action' => ['required', Rule::in(['approve', 'publish', 'request_revision'])],
+            'action' => ['required', Rule::in(['publish', 'request_revision'])],
             'showcase' => ['nullable', 'boolean'],
         ]);
 
-        $checklist = [];
-        if ($validated['action'] === 'publish') {
-            $checklist = $request->validate([
-                'checklist.thumbnail' => ['required', 'accepted'],
-                'checklist.rights' => ['required', 'accepted'],
-                'checklist.demo' => ['required', 'accepted'],
-                'checklist.originality' => ['required', 'accepted'],
-            ])['checklist'];
-        }
         if ($validated['action'] === 'request_revision') {
             $validated['comment'] = $request->validate([
                 'comment' => ['required', 'string', 'max:1000'],
             ])['comment'];
         }
 
-        DB::transaction(function () use ($projectId, $validated, $checklist): void {
+        DB::transaction(function () use ($projectId, $validated): void {
             $project = Project::query()
                 ->where('project_id', $projectId)
                 ->whereIn('status', ['Approved', 'Published'])
                 ->lockForUpdate()
                 ->firstOrFail();
-
-            if ($validated['action'] === 'approve') {
-                if ($project->status === 'Published') {
-                    abort(409, 'Project ini sudah dipublikasikan.');
-                }
-
-                $project->forceFill([
-                    'publication_approved_by' => auth()->id(),
-                    'publication_approved_at' => now(),
-                ])->save();
-
-                $this->recordPengurusAudit(
-                    'PUBLICATION_APPROVED',
-                    'Pengurus memberikan approval resmi untuk project "'.$project->title.'".',
-                    $project->project_id,
-                );
-
-                return;
-            }
+            $version = ProjectVersion::sortChronologically(DB::table('project_versions')
+                ->where('project_id', $project->project_id)
+                ->get())->last();
+            abort_if(! $version, 409, 'Project ini belum memiliki versi submission yang dapat disetujui.');
+            abort_if($project->status === 'Published', 409, 'Project ini sudah dipublikasikan.');
 
             if ($validated['action'] === 'request_revision') {
-                if ($project->status === 'Published') {
-                    abort(409, 'Project yang sudah dipublikasikan tidak dapat dikembalikan ke revisi dari halaman ini.');
-                }
-
                 do {
                     $reviewId = 'REV-'.Str::upper(Str::random(16));
                 } while (DB::table('reviews')->where('review_id', $reviewId)->exists());
@@ -971,39 +1000,58 @@ class HomeController extends Controller
                     'review_id' => $reviewId,
                     'project_id' => $project->project_id,
                     'reviewer_id' => auth()->id(),
+                    'version_id' => $version->version_id,
                     'comment' => $validated['comment'],
                     'rating' => null,
+                    'decision' => 'Revision Required',
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
-                $project->forceFill(['status' => 'Revision Required'])->save();
+                $project->forceFill([
+                    'status' => 'Revision Required',
+                    'publication_approved_by' => null,
+                    'publication_approved_at' => null,
+                ])->save();
                 $this->recordPengurusAudit(
                     'REVISION_REQUESTED',
-                    'Pengurus meminta revisi untuk project "'.$project->title.'".',
+                    'Pengurus meminta revisi untuk project "'.$project->title.'" versi '.
+                        $version->version_number.' ('.$version->version_id.').',
                     $project->project_id,
                 );
 
                 return;
             }
 
-            if ($project->status === 'Published') {
-                abort(409, 'Project ini sudah dipublikasikan.');
-            }
-            if (! $project->publication_approved_at) {
-                abort(409, 'Berikan approval resmi pengurus sebelum mempublikasikan project.');
-            }
-
+            $publishedAt = now();
             $project->forceFill([
                 'status' => 'Published',
-                'published_at' => now(),
+                'publication_approved_by' => auth()->id(),
+                'publication_approved_at' => $publishedAt,
+                'published_at' => $publishedAt,
+                'published_version_id' => $version->version_id,
                 'is_featured' => (bool) ($validated['showcase'] ?? false),
             ])->save();
+            DB::table('project_versions')
+                ->where('version_id', $version->version_id)
+                ->update([
+                    'approved_by' => auth()->id(),
+                    'approved_at' => $publishedAt,
+                    'is_published' => true,
+                    'published_at' => $publishedAt,
+                    'updated_at' => $publishedAt,
+                ]);
 
+            $this->recordPengurusAudit(
+                'PUBLICATION_APPROVED',
+                'Pengurus memberikan approval resmi untuk project "'.$project->title.'" versi '.
+                    $version->version_number.' ('.$version->version_id.').',
+                $project->project_id,
+            );
             $this->recordPengurusAudit(
                 'PROJECT_PUBLISHED',
                 'Project "'.$project->title.'" dipublikasikan ke showcase. '.
                     'Visibilitas beranda: '.($project->is_featured ? 'aktif' : 'nonaktif').
-                    '. Checklist: '.implode(', ', array_keys($checklist)).'.',
+                    '. Versi: '.$version->version_number.' ('.$version->version_id.').',
                 $project->project_id,
             );
         });
@@ -1012,11 +1060,9 @@ class HomeController extends Controller
             ->route($validated['action'] === 'request_revision'
                 ? 'dashboard.pengurus.approvals'
                 : 'dashboard.pengurus.approval.show', $validated['action'] === 'request_revision' ? [] : $projectId)
-            ->with('status', $validated['action'] === 'approve'
-                ? 'Approval resmi pengurus berhasil disimpan.'
-                : ($validated['action'] === 'publish'
-                    ? 'Project berhasil dipublikasikan ke showcase.'
-                    : 'Catatan revisi berhasil dikirim kepada peserta.'));
+            ->with('status', $validated['action'] === 'publish'
+                ? 'Project berhasil dipublikasikan ke showcase.'
+                : 'Catatan revisi berhasil dikirim kepada peserta.');
     }
 
     public function pengurusAuditTrail(Request $request)
@@ -1090,17 +1136,31 @@ class HomeController extends Controller
             ->where('project_id', $project->project_id)
             ->orderBy('tool_name')
             ->pluck('tool_name');
-        $files = DB::table('project_files')
+        $latestVersion = ProjectVersion::sortChronologically(DB::table('project_versions')
             ->where('project_id', $project->project_id)
-            ->latest('created_at')
-            ->get();
-        $latestVersion = DB::table('project_versions')
-            ->where('project_id', $project->project_id)
-            ->latest('created_at')
-            ->first();
-        $projectUrl = filter_var($project->project_link, FILTER_VALIDATE_URL)
-            && in_array(parse_url($project->project_link, PHP_URL_SCHEME), ['http', 'https'], true)
-                ? $project->project_link
+            ->get())->last();
+        $files = $latestVersion
+            ? DB::table('project_version_files')->where('version_id', $latestVersion->version_id)->orderBy('created_at')->get()
+            : collect();
+        if ($files->isEmpty() && $latestVersion?->title_snapshot === null) {
+            $files = DB::table('project_files')
+                ->where('project_id', $project->project_id)
+                ->orderBy('created_at')
+                ->get(['file_path', 'file_name as file_name_snapshot']);
+        }
+        $reviewSnapshot = [
+            'title' => $latestVersion?->title_snapshot ?? $project->title,
+            'description' => $latestVersion?->description_snapshot ?? $project->description,
+            'field_name' => $latestVersion?->field_name_snapshot ?? $project->mentoringField?->field_name,
+            'period_name' => $latestVersion?->period_name_snapshot ?? $period?->period_name,
+            'project_link' => $latestVersion?->project_link_snapshot ?? $project->project_link,
+            'thumbnail_path' => $latestVersion?->title_snapshot !== null
+                ? $latestVersion->thumbnail_path_snapshot
+                : $project->thumbnail_url,
+        ];
+        $projectUrl = filter_var($reviewSnapshot['project_link'], FILTER_VALIDATE_URL)
+            && in_array(parse_url($reviewSnapshot['project_link'], PHP_URL_SCHEME), ['http', 'https'], true)
+                ? $reviewSnapshot['project_link']
                 : null;
 
         return $this->privateView('mentor.review-project', compact(
@@ -1110,6 +1170,7 @@ class HomeController extends Controller
             'tools',
             'files',
             'latestVersion',
+            'reviewSnapshot',
             'projectUrl',
         ) + [
             'waitingReviewCount' => Project::whereIn('status', ['Submitted', 'In Review'])->count(),
@@ -1130,41 +1191,21 @@ class HomeController extends Controller
             ->firstOrFail();
 
         $validated = $request->validate([
-            'rubric.technical_quality' => ['required', Rule::in(['needs_improvement', 'meets_standard', 'exceptional'])],
-            'rubric.creative_quality' => ['required', Rule::in(['needs_improvement', 'meets_standard', 'exceptional'])],
-            'rubric.publication_readiness' => ['required', Rule::in(['needs_improvement', 'meets_standard', 'exceptional'])],
+            'score' => ['required', 'integer', 'between:0,100'],
             'comment' => ['required', 'string', 'max:1000'],
             'decision' => ['required', Rule::in(['Revision Required', 'Approved'])],
         ]);
 
-        $levelScores = [
-            'needs_improvement' => 1,
-            'meets_standard' => 3,
-            'exceptional' => 5,
-        ];
-        $weights = [
-            'technical_quality' => 40,
-            'creative_quality' => 30,
-            'publication_readiness' => 30,
-        ];
-        $rubricScores = [];
-        $weightedScore = 0;
-
-        foreach ($weights as $criterion => $weight) {
-            $score = $levelScores[$validated['rubric'][$criterion]];
-            $rubricScores[$criterion] = [
-                'rating' => $validated['rubric'][$criterion],
-                'score' => $score,
-                'weight' => $weight,
-            ];
-            $weightedScore += $score * ($weight / 100);
-        }
-
-        DB::transaction(function () use ($project, $validated, $rubricScores, $weightedScore): void {
+        DB::transaction(function () use ($project, $validated): void {
             $project = $this->mentorReviewQueueQuery()
                 ->where('projects.project_id', $project->project_id)
                 ->lockForUpdate()
                 ->firstOrFail();
+            $version = ProjectVersion::sortChronologically(DB::table('project_versions')
+                ->where('project_id', $project->project_id)
+                ->get())->last();
+            abort_if(! $version, 409, 'Project ini belum memiliki versi submission yang dapat direview.');
+            $reviewedAt = now();
 
             do {
                 $reviewId = 'REV-'.Str::upper(Str::random(16));
@@ -1174,11 +1215,12 @@ class HomeController extends Controller
                 'review_id' => $reviewId,
                 'project_id' => $project->project_id,
                 'reviewer_id' => auth()->id(),
+                'version_id' => $version->version_id,
                 'comment' => $validated['comment'],
-                'rating' => (string) round($weightedScore),
-                'rubric_scores' => json_encode($rubricScores, JSON_THROW_ON_ERROR),
-                'created_at' => now(),
-                'updated_at' => now(),
+                'score' => (int) $validated['score'],
+                'decision' => $validated['decision'],
+                'created_at' => $reviewedAt,
+                'updated_at' => $reviewedAt,
             ]);
 
             Project::query()
@@ -1187,6 +1229,21 @@ class HomeController extends Controller
                     'status' => $validated['decision'],
                     'updated_at' => now(),
                 ]);
+
+            $this->recordAudit(
+                'MENTOR_REVIEW',
+                'Mentor meninjau project "'.$project->title.'" versi '.
+                    $version->version_number.' ('.$version->version_id.'): '.$validated['decision'].'.',
+                $project->project_id,
+            );
+            if ($validated['decision'] === 'Revision Required') {
+                $this->recordAudit(
+                    'REVISION_REQUESTED',
+                    'Mentor meminta revisi project "'.$project->title.'" pada versi '.
+                        $version->version_number.' ('.$version->version_id.').',
+                    $project->project_id,
+                );
+            }
         });
 
         return redirect()
@@ -1236,18 +1293,22 @@ class HomeController extends Controller
             ->pluck('tool_name');
         $reviews = DB::table('reviews')
             ->join('users', 'users.user_id', '=', 'reviews.reviewer_id')
+            ->leftJoin('project_versions', 'project_versions.version_id', '=', 'reviews.version_id')
             ->where('reviews.project_id', $project->project_id)
             ->latest('reviews.created_at')
             ->get([
                 'reviews.comment',
+                'reviews.score',
                 'reviews.rating',
+                'reviews.decision',
+                'reviews.version_id',
+                'project_versions.version_number',
                 'reviews.created_at',
                 'users.name as reviewer_name',
             ]);
-        $versions = DB::table('project_versions')
+        $versions = ProjectVersion::sortChronologically(DB::table('project_versions')
             ->where('project_id', $project->project_id)
-            ->latest('created_at')
-            ->get();
+            ->get())->reverse()->values();
         $files = DB::table('project_files')
             ->where('project_id', $project->project_id)
             ->latest('created_at')
@@ -1293,30 +1354,36 @@ class HomeController extends Controller
                 'revision_file',
             )
             : null;
-        $nextVersion = 'v1.'.(DB::table('project_versions')
-            ->where('project_id', $project->project_id)
-            ->count() + 1);
 
         try {
-            DB::transaction(function () use ($project, $validated, $revisionFile, $revisionFilePath, $nextVersion): void {
+            DB::transaction(function () use ($project, $validated, $revisionFile, $revisionFilePath): void {
+                $project = Project::query()
+                    ->whereKey($project->project_id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+                abort_unless(
+                    $project->created_by === auth()->id() && $project->status === 'Revision Required',
+                    403,
+                    'Project ini tidak sedang menunggu revisi.',
+                );
+
+                $submittedAt = now();
                 $project->update([
                     'project_link' => $validated['project_link'],
                     'status' => 'Resubmitted',
+                    'submitted_at' => $submittedAt,
+                    'publication_approved_by' => null,
+                    'publication_approved_at' => null,
+                    'published_version_id' => null,
                 ]);
 
-                do {
-                    $versionId = 'VER-'.Str::upper(Str::random(15));
-                } while (DB::table('project_versions')->where('version_id', $versionId)->exists());
-
-                DB::table('project_versions')->insert([
-                    'version_id' => $versionId,
-                    'project_id' => $project->project_id,
-                    'version_number' => $nextVersion,
-                    'changelog' => $validated['revision_notes'],
-                    'file_path' => $revisionFilePath,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+                $versionFileIds = $project->thumbnail_url
+                    ? DB::table('project_files')
+                        ->where('project_id', $project->project_id)
+                        ->where('file_path', $project->thumbnail_url)
+                        ->pluck('file_id')
+                        ->all()
+                    : [];
 
                 if ($revisionFile && $revisionFilePath) {
                     do {
@@ -1331,7 +1398,22 @@ class HomeController extends Controller
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
+                    $versionFileIds[] = $fileId;
                 }
+
+                $version = $this->createProjectVersion(
+                    $project,
+                    $validated['revision_notes'],
+                    $revisionFilePath,
+                    $versionFileIds,
+                    $submittedAt,
+                );
+                $this->recordAudit(
+                    'PROJECT_RESUBMITTED',
+                    'Peserta mengirim ulang project "'.$project->title.'" sebagai versi '.
+                        $version->version_number.' ('.$version->version_id.').',
+                    $project->project_id,
+                );
             });
         } catch (Throwable $exception) {
             if ($revisionFilePath) {
@@ -1466,13 +1548,14 @@ class HomeController extends Controller
                     }
                 }
 
-                Project::create([
+                $submittedAt = $submissionAction === 'Submitted' ? now() : null;
+                $project = Project::create([
                     ...$validated,
                     'project_id' => $projectId,
                     'created_by' => auth()->id(),
                     'thumbnail_url' => $thumbnailPath,
                     'status' => $submissionAction,
-                    'submitted_at' => $submissionAction === 'Submitted' ? now() : null,
+                    'submitted_at' => $submittedAt,
                 ]);
 
                 foreach ($members as $member) {
@@ -1511,6 +1594,22 @@ class HomeController extends Controller
                         'created_at' => now(),
                         'updated_at' => now(),
                     ]);
+                }
+
+                if ($submissionAction === 'Submitted') {
+                    $version = $this->createProjectVersion(
+                        $project,
+                        null,
+                        null,
+                        DB::table('project_files')->where('project_id', $projectId)->pluck('file_id')->all(),
+                        $submittedAt,
+                    );
+                    $this->recordAudit(
+                        'PROJECT_SUBMITTED',
+                        'Peserta mengajukan project "'.$project->title.'" sebagai versi '.
+                            $version->version_number.' ('.$version->version_id.').',
+                        $projectId,
+                    );
                 }
             });
         } catch (Throwable $exception) {
@@ -1574,13 +1673,14 @@ class HomeController extends Controller
                     : null;
                 $oldThumbnailPath = $oldThumbnailFile?->file_path;
 
+                $submittedAt = $submissionAction === 'Submitted' ? now() : $project->submitted_at;
                 $project->update([
                     ...$validated,
                     'thumbnail_url' => $thumbnailPath
                         ? $thumbnailPath
                         : $project->thumbnail_url,
                     'status' => $submissionAction === 'Submitted' ? 'Submitted' : $project->status,
-                    'submitted_at' => $submissionAction === 'Submitted' ? now() : $project->submitted_at,
+                    'submitted_at' => $submittedAt,
                 ]);
 
                 DB::table('project_members')->where('project_id', $project->project_id)->delete();
@@ -1633,13 +1733,27 @@ class HomeController extends Controller
                     }
                 }
 
-                $this->recordAudit(
-                    $submissionAction === 'Draft' ? 'DRAFT_SAVED' : 'PROJECT_SUBMITTED',
-                    $submissionAction === 'Draft'
-                        ? 'Menyimpan draft project "'.$project->title.'".'
-                        : 'Mengajukan project "'.$project->title.'" dari draft.',
-                    $project->project_id,
-                );
+                if ($submissionAction === 'Submitted') {
+                    $version = $this->createProjectVersion(
+                        $project,
+                        null,
+                        null,
+                        DB::table('project_files')->where('project_id', $project->project_id)->pluck('file_id')->all(),
+                        $submittedAt,
+                    );
+                    $this->recordAudit(
+                        'PROJECT_SUBMITTED',
+                        'Peserta mengajukan project "'.$project->title.'" dari draft sebagai versi '.
+                            $version->version_number.' ('.$version->version_id.').',
+                        $project->project_id,
+                    );
+                } else {
+                    $this->recordAudit(
+                        'DRAFT_SAVED',
+                        'Menyimpan draft project "'.$project->title.'".',
+                        $project->project_id,
+                    );
+                }
 
                 return $oldThumbnailPath;
             });
@@ -1801,6 +1915,112 @@ class HomeController extends Controller
         ]);
     }
 
+    private function createProjectVersion(
+        Project $project,
+        ?string $changelog,
+        ?string $filePath,
+        array $fileIds,
+        Carbon $submittedAt,
+    ): object {
+        do {
+            $versionId = 'VER-'.Str::upper(Str::random(15));
+        } while (DB::table('project_versions')->where('version_id', $versionId)->exists());
+
+        $field = DB::table('mentoring_fields')->where('field_id', $project->field_id)->first();
+        $period = DB::table('mentoring_periods')->where('period_id', $project->period_id)->first();
+        $teamSnapshot = DB::table('project_members')
+            ->join('users', 'users.user_id', '=', 'project_members.user_id')
+            ->where('project_members.project_id', $project->project_id)
+            ->orderBy('users.name')
+            ->get(['project_members.user_id', 'users.name', 'project_members.member_role'])
+            ->map(fn ($member): array => [
+                'user_id' => $member->user_id,
+                'name' => $member->name,
+                'member_role' => $member->member_role,
+            ])
+            ->all();
+        $toolsSnapshot = DB::table('project_tools')
+            ->where('project_id', $project->project_id)
+            ->orderBy('tool_name')
+            ->pluck('tool_name')
+            ->all();
+
+        DB::table('project_versions')->insert([
+            'version_id' => $versionId,
+            'project_id' => $project->project_id,
+            'version_number' => $this->nextProjectVersionNumber($project->project_id),
+            'changelog' => $changelog,
+            'file_path' => $filePath,
+            'title_snapshot' => $project->title,
+            'description_snapshot' => $project->description,
+            'field_id_snapshot' => $project->field_id,
+            'field_name_snapshot' => $field?->field_name,
+            'period_id_snapshot' => $project->period_id,
+            'period_name_snapshot' => $period?->period_name,
+            'project_link_snapshot' => $project->project_link,
+            'thumbnail_path_snapshot' => $project->thumbnail_url,
+            'team_snapshot' => json_encode($teamSnapshot, JSON_THROW_ON_ERROR),
+            'tools_snapshot' => json_encode($toolsSnapshot, JSON_THROW_ON_ERROR),
+            'submitted_at' => $submittedAt,
+            'submitted_by' => auth()->id(),
+            'is_published' => false,
+            'is_legacy_snapshot' => false,
+            'created_at' => $submittedAt,
+            'updated_at' => $submittedAt,
+        ]);
+
+        foreach (array_unique($fileIds) as $fileId) {
+            $file = DB::table('project_files')
+                ->where('project_id', $project->project_id)
+                ->where('file_id', $fileId)
+                ->first();
+            if (! $file) {
+                continue;
+            }
+
+            do {
+                $versionFileId = 'VF-'.Str::upper(Str::random(17));
+            } while (DB::table('project_version_files')->where('version_file_id', $versionFileId)->exists());
+
+            DB::table('project_version_files')->insert([
+                'version_file_id' => $versionFileId,
+                'version_id' => $versionId,
+                'file_id' => $file->file_id,
+                'file_name_snapshot' => $file->file_name,
+                'file_path' => $file->file_path,
+                'created_at' => $submittedAt,
+                'updated_at' => $submittedAt,
+            ]);
+        }
+
+        return DB::table('project_versions')->where('version_id', $versionId)->firstOrFail();
+    }
+
+    private function nextProjectVersionNumber(string $projectId): string
+    {
+        $versions = DB::table('project_versions')
+            ->where('project_id', $projectId)
+            ->pluck('version_number');
+        $latest = null;
+
+        foreach ($versions as $versionNumber) {
+            $candidate = ProjectVersion::versionSequence((string) $versionNumber);
+            if ($candidate === null) {
+                continue;
+            }
+
+            if ($latest === null || $candidate[0] > $latest[0] || ($candidate[0] === $latest[0] && $candidate[1] > $latest[1])) {
+                $latest = $candidate;
+            }
+        }
+
+        if ($latest === null) {
+            return 'v1.0';
+        }
+
+        return 'v'.$latest[0].'.'.($latest[1] + 1);
+    }
+
     private function participantActivities(string $projectId): Collection
     {
         $auditActivities = DB::table('audit_logs')
@@ -1857,10 +2077,10 @@ class HomeController extends Controller
         if ($includeProject) {
             $rules = [
                 'project_id' => [
-                'required',
-                'string',
-                Rule::exists('projects', 'project_id')
-                    ->where(fn (Builder $query) => $query->whereIn('status', ['Submitted', 'In Review', 'Revision Required', 'Resubmitted', 'Approved', 'Published'])),
+                    'required',
+                    'string',
+                    Rule::exists('projects', 'project_id')
+                        ->where(fn (Builder $query) => $query->whereIn('status', ['Submitted', 'In Review', 'Revision Required', 'Resubmitted', 'Approved', 'Published'])),
                 ],
             ] + $rules;
         }
@@ -1995,7 +2215,7 @@ class HomeController extends Controller
     {
         try {
             $mentoringFields = MentoringField::take(4)->get();
-            $publishedProjects = Project::with(['mentoringField', 'creator'])
+            $publishedProjects = Project::with(['mentoringField', 'creator', 'publishedVersion'])
                 ->where('status', 'Published')
                 ->where('is_featured', true)
                 ->latest('published_at')

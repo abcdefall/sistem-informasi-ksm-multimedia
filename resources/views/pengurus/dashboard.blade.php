@@ -70,10 +70,10 @@
                 </article>
                 <article class="mentor-stat-card pengurus-stat-card">
                     <div>
-                        <p class="text-xs font-medium text-slate-500">Tingkat Kelulusan Kurasi</p>
+                        <p class="text-xs font-medium text-slate-500">Rata-rata Nilai Mentor</p>
                         @if ($curationScore !== null)
-                            <p class="mt-1 text-2xl font-bold text-slate-900">{{ number_format((float) $curationScore * 20, 1) }}%</p>
-                            <p class="text-[0.65rem] text-slate-500">Rata-rata skor {{ number_format((float) $curationScore, 2) }}/5</p>
+                            <p class="mt-1 text-2xl font-bold text-slate-900">{{ number_format((float) $curationScore, 1) }}</p>
+                            <p class="text-[0.65rem] text-slate-500">Rata-rata nilai akhir {{ number_format((float) $curationScore, 2) }}/100</p>
                         @else
                             <p class="mt-1 text-2xl font-bold text-slate-900">—</p>
                             <p class="text-[0.65rem] text-slate-500">Belum ada nilai review</p>
@@ -143,7 +143,7 @@
                                         <p class="font-semibold text-slate-800">{{ $latestReview?->reviewer_name ?? 'Belum ada data mentor' }}</p>
                                         @if ($latestReview)
                                             <p class="mt-0.5 text-[0.65rem] font-medium text-emerald-700">✓ Rekomendasi mentor</p>
-                                            <p class="text-[0.62rem] text-slate-500">Skor: {{ $latestReview->rating ? $latestReview->rating . '/5' : '—' }}</p>
+                                            <p class="text-[0.62rem] text-slate-500">Nilai: {{ $latestReview->score ?? ($latestReview->rating !== null ? (int) $latestReview->rating * 20 : '—') }}/100</p>
                                         @else
                                             <p class="mt-0.5 text-[0.65rem] text-slate-500">Belum ada rekomendasi</p>
                                         @endif

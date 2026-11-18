@@ -100,12 +100,17 @@
                             <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 text-sm font-bold text-ksm">{{ strtoupper(substr($review->reviewer_name, 0, 1)) }}</div>
                             <div>
                                 <h2 class="font-bold text-gray-900">{{ $review->reviewer_name }}</h2>
-                                <p class="text-xs text-gray-500">{{ \Illuminate\Support\Carbon::parse($review->created_at)->format('d F Y, H:i') }} WIB</p>
+                                <p class="text-xs text-gray-500">
+                                    {{ \Illuminate\Support\Carbon::parse($review->created_at)->format('d F Y, H:i') }} WIB
+                                    @if ($review->version_number) · Versi {{ $review->version_number }} @endif
+                                </p>
                             </div>
                         </div>
-                        <span class="inline-flex items-center gap-1 text-xs font-semibold {{ $project->status === 'Revision Required' ? 'text-ksm' : 'text-blue-700' }}">
-                            {{ $project->status === 'Revision Required' ? 'Evaluasi: perlu revisi' : 'Feedback mentor' }}
-                            @if ($review->rating) <span class="ml-1">• Rating {{ $review->rating }}/5</span> @endif
+                        <span class="inline-flex items-center gap-1 text-xs font-semibold {{ $review->decision === 'Revision Required' ? 'text-ksm' : 'text-blue-700' }}">
+                            {{ $review->decision ?? 'Feedback mentor' }}
+                            @if ($review->score !== null || $review->rating !== null)
+                                <span class="ml-1">• Nilai {{ $review->score ?? (int) $review->rating * 20 }}/100</span>
+                            @endif
                         </span>
                     </div>
                     <div class="pt-4">

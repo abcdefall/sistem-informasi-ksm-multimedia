@@ -118,26 +118,27 @@
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
             @forelse($publishedProjects as $project)
+                @php($snapshot = $project->published_snapshot)
                 <div class="custom-card">
                     <div class="showcase-image-wrapper">
-                        @if($project->thumbnail_url)
-                            <img src="{{ $project->thumbnail_display_url }}" alt="{{ $project->title }}">
+                        @if($project->published_thumbnail_url)
+                            <img src="{{ $project->published_thumbnail_url }}" alt="{{ $snapshot['title'] }}">
                         @else
                             <div class="w-full h-full flex items-center justify-center text-gray-400">Tanpa Gambar</div>
                         @endif
-                        <div class="showcase-badge">{{ $project->mentoringField->field_name ?? 'General' }}</div>
+                        <div class="showcase-badge">{{ $snapshot['field_name'] ?? 'General' }}</div>
                     </div>
                     <div class="p-6">
                         <div class="flex justify-between items-center mb-3">
-                            <span class="text-ksm text-xs font-bold tracking-widest uppercase">{{ $project->mentoringField->field_name ?? 'Multimedia' }}</span>
+                            <span class="text-ksm text-xs font-bold tracking-widest uppercase">{{ $snapshot['field_name'] ?? 'Multimedia' }}</span>
                             <span class="text-gray-400 text-xs">ID: CS-{{ date('Y') }}-{{ str_pad($project->project_id, 2, '0', STR_PAD_LEFT) }}</span>
                         </div>
-                        <h3 class="font-bold text-xl mb-1 truncate">{{ $project->title }}</h3>
+                        <h3 class="font-bold text-xl mb-1 truncate">{{ $snapshot['title'] }}</h3>
                         <p class="text-gray-500 text-sm mb-6 flex items-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                            {{ $project->creator->name ?? 'Tim Kreator' }}
+                            {{ collect($snapshot['team'] ?? [])->pluck('name')->filter()->join(', ') ?: ($project->creator->name ?? 'Tim Kreator') }}
                         </p>
-                        <a href="{{ $project->project_link ?? '#' }}" class="block w-full text-center border border-gray-200 text-gray-700 hover:border-ksm hover:text-ksm py-2 rounded-md text-sm font-medium transition">
+                        <a href="{{ route('showcase.show', $project->project_id) }}" class="block w-full text-center border border-gray-200 text-gray-700 hover:border-ksm hover:text-ksm py-2 rounded-md text-sm font-medium transition">
                             Buka Detail &nearr;
                         </a>
                     </div>

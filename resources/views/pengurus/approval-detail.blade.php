@@ -18,16 +18,25 @@
 
             <header class="mb-5 flex flex-col justify-between gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center">
                 <div>
-                    <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Persetujuan Publikasi: {{ $project->title }}</h1>
+                    <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Persetujuan Publikasi: {{ $approvalSnapshot['title'] }}</h1>
                     <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[0.68rem] text-slate-500">
                         <span>Capstone ID: <strong class="text-slate-700">{{ $project->project_id }}</strong></span>
-                        <span>Bidang: <strong class="text-slate-700">{{ $project->mentoringField?->field_name ?? 'Belum ditentukan' }}</strong></span>
-                        <span>Periode: <strong class="text-slate-700">{{ $period?->period_name ?? 'Tidak tersedia' }}</strong></span>
+                        <span>Bidang: <strong class="text-slate-700">{{ $approvalSnapshot['field_name'] ?? 'Belum ditentukan' }}</strong></span>
+                        <span>Periode: <strong class="text-slate-700">{{ $approvalSnapshot['period_name'] ?? 'Tidak tersedia' }}</strong></span>
+                        @if ($latestVersion)
+                            <span>Versi yang dinilai: <strong class="text-slate-700">{{ $latestVersion->version_number }}</strong></span>
+                        @endif
                     </div>
                 </div>
-                <span class="mentor-status-badge {{ $project->status === 'Published' ? 'pengurus-status-published' : 'pengurus-status-approved' }}">
-                    {{ $project->status === 'Published' ? 'Sudah Dipublikasikan' : 'Lolos Evaluasi Mentor' }}
-                </span>
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="mentor-status-badge {{ $project->status === 'Published' ? 'pengurus-status-published' : 'pengurus-status-approved' }}">
+                        {{ $project->status === 'Published' ? 'Sudah Dipublikasikan' : 'Lolos Evaluasi Mentor' }}
+                    </span>
+                    <form method="POST" action="{{ route('dashboard.pengurus.projects.archive', $project->project_id) }}" onsubmit="return confirm('Arsipkan project ini? Data, file, review, dan versinya tidak akan dihapus.')">
+                        @csrf
+                        <button type="submit" class="pengurus-secondary-action">Archive Project</button>
+                    </form>
+                </div>
             </header>
 
             @if (session('status'))
@@ -48,32 +57,30 @@
                             <span class="ml-auto rounded bg-indigo-100 px-2 py-1 text-[0.6rem] font-semibold text-indigo-700">{{ $project->mentoringField?->field_name ?? 'Bidang belum ditentukan' }}</span>
                         </div>
 
-                        <div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                                <p class="text-[0.6rem] font-bold uppercase text-slate-400">Anggota Tim Pengusul</p>
-                                <p class="mt-1 text-xs font-semibold text-slate-800">{{ $members->pluck('name')->join(', ') ?: $project->creator?->name }}</p>
-                                <p class="mt-1 text-[0.65rem] text-slate-500">Pengaju: {{ $project->creator?->name }}</p>
-                            </div>
-                            <div class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                                <p class="text-[0.6rem] font-bold uppercase text-slate-400">Status Akademis</p>
-                                <p class="mt-1 text-xs font-semibold text-slate-800">{{ $project->status === 'Published' ? 'Terbit di Showcase' : 'Reguler - Tingkat Akhir' }}</p>
+                        <div class="mt-4">
+                            <div class="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div class="min-w-0">
+                                    <p class="text-[0.6rem] font-bold uppercase tracking-wide text-slate-400">Anggota Tim Pengusul</p>
+                                    <p class="mt-1 break-words text-xs font-semibold text-slate-800">{{ $members->pluck('name')->join(', ') ?: $project->creator?->name }}</p>
+                                </div>
+                                <p class="shrink-0 text-[0.65rem] text-slate-500"><span class="font-semibold text-slate-600">Pengaju:</span> {{ $project->creator?->name }}</p>
                             </div>
                         </div>
 
                         <div class="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                            @if ($project->thumbnail_url)
-                                <img src="{{ $project->thumbnail_display_url }}" alt="Thumbnail {{ $project->title }}" class="max-h-[24rem] w-full object-contain">
+                            @if ($approvalSnapshot['thumbnail_path'])
+                                <img src="{{ route('media.show', ['path' => $approvalSnapshot['thumbnail_path']]) }}" alt="Thumbnail {{ $approvalSnapshot['title'] }}" class="max-h-[24rem] w-full object-contain">
                             @else
                                 <div class="flex min-h-48 items-center justify-center text-sm text-slate-400">Thumbnail project belum tersedia</div>
                             @endif
                         </div>
-                        <p class="mt-3 whitespace-pre-line text-xs leading-relaxed text-slate-600">{{ $project->description ?: 'Belum ada deskripsi project.' }}</p>
+                        <p class="mt-3 whitespace-pre-line text-xs leading-relaxed text-slate-600">{{ $approvalSnapshot['description'] ?: 'Belum ada deskripsi project.' }}</p>
                         <div class="mt-3 flex flex-wrap gap-2">
-                            @if ($project->project_link && filter_var($project->project_link, FILTER_VALIDATE_URL) && in_array(parse_url($project->project_link, PHP_URL_SCHEME), ['http', 'https'], true))
-                                <a href="{{ $project->project_link }}" target="_blank" rel="noopener noreferrer" class="mentor-review-link">Buka Demo / Repository ↗</a>
+                            @if ($projectUrl)
+                                <a href="{{ $projectUrl }}" target="_blank" rel="noopener noreferrer" class="mentor-review-link">Buka Demo / Repository ↗</a>
                             @endif
                             @foreach ($files as $file)
-                                <a href="{{ route('media.show', ['path' => $file->file_path]) }}" target="_blank" rel="noopener noreferrer" class="mentor-review-link">{{ $file->file_name }} ↗</a>
+                                <a href="{{ route('media.show', ['path' => $file->file_path]) }}" target="_blank" rel="noopener noreferrer" class="mentor-review-link">{{ $file->file_name_snapshot }} ↗</a>
                             @endforeach
                         </div>
                         @if ($tools->isNotEmpty())
@@ -85,60 +92,28 @@
                         @endif
                     </section>
 
+                </div>
+
+                <div class="space-y-4">
                     @if ($latestReview)
                         <section class="mentor-review-context border-l-4 border-ksm">
                             <div class="flex flex-wrap items-center justify-between gap-2">
                                 <h2 class="font-bold text-slate-800">Catatan Rekomendasi Mentor</h2>
                                 <span class="rounded bg-emerald-100 px-2 py-1 text-[0.62rem] font-semibold text-emerald-800">✓ Direkomendasikan</span>
                             </div>
-                            <p class="mt-1 text-[0.65rem] text-slate-500">{{ $latestReview->reviewer_name }}</p>
+                            <p class="mt-1 text-[0.65rem] text-slate-500">
+                                {{ $latestReview->reviewer_name }}
+                                @if ($latestReview->review_version_number) · Menilai {{ $latestReview->review_version_number }} @endif
+                                @if ($latestReview->decision) · {{ $latestReview->decision }} @endif
+                            </p>
                             <p class="mt-3 whitespace-pre-line text-xs leading-relaxed text-slate-700">“{{ $latestReview->comment }}”</p>
                         </section>
                     @endif
 
                     <section class="mentor-review-card">
                         <div class="flex flex-wrap items-center justify-between gap-2">
-                            <h2 class="mentor-review-section-title flex-1 border-0 pb-0">Skor Evaluasi Rubrik Akademik</h2>
-                            <p class="text-sm font-extrabold text-slate-900">{{ $latestReview?->rating ? number_format((float) $latestReview->rating * 20, 0) : '—' }} <span class="text-[0.65rem] font-medium text-slate-500">/ 100 Rata-rata</span></p>
-                        </div>
-                        <div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                            @foreach ([
-                                'technical_quality' => 'Kualitas Teknis',
-                                'creative_quality' => 'Estetika Visual',
-                                'publication_readiness' => 'Dokumentasi',
-                            ] as $criterion => $label)
-                                @php($score = data_get($rubricScores, $criterion . '.score'))
-                                <article class="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                                    <div class="flex items-center justify-between gap-1">
-                                        <h3 class="text-[0.65rem] text-slate-500">{{ $label }}</h3>
-                                        <strong class="text-xs text-ksm">{{ $score ? $score * 20 : '—' }}</strong>
-                                    </div>
-                                    <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200">
-                                        <span class="block h-full rounded-full bg-ksm" style="width: {{ $score ? $score * 20 : 0 }}%"></span>
-                                    </div>
-                                    <p class="mt-1 text-[0.58rem] text-slate-500">Bobot {{ data_get($rubricScores, $criterion . '.weight', '—') }}%</p>
-                                </article>
-                            @endforeach
-                        </div>
-                    </section>
-                </div>
-
-                <div class="space-y-4">
-                    <section class="mentor-review-card">
-                        <h2 class="mentor-review-section-title">Checklist Standar Etalase</h2>
-                        <p class="mt-3 text-xs leading-relaxed text-slate-500">Verifikasi setiap persyaratan sebelum memublikasikan karya.</p>
-                        <div class="mt-3 space-y-2">
-                            @foreach ([
-                                'thumbnail' => ['Kelengkapan Thumbnail 16:9', 'Resolusi tinggi, jernih, tanpa watermark pihak ketiga.'],
-                                'rights' => ['Bebas Pelanggaran Hak Cipta', 'Aset audio & visual berlisensi CC atau orisinal tim.'],
-                                'demo' => ['Tautan Demo Akses Publik', 'Dapat dimainkan tanpa kredensial login khusus.'],
-                                'originality' => ['Integritas Akademik KSM', 'Pakta keaslian karya telah ditandatangani digital.'],
-                            ] as $key => [$label, $description])
-                                <label class="flex gap-2.5 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs">
-                                    <input form="publication-form" type="checkbox" name="checklist[{{ $key }}]" value="1" required class="mt-0.5 accent-ksm" @checked(old('checklist.' . $key)) @disabled($project->status === 'Published')>
-                                    <span><strong class="block text-slate-800">{{ $label }}</strong><span class="mt-1 block leading-relaxed text-slate-500">{{ $description }}</span></span>
-                                </label>
-                            @endforeach
+                            <h2 class="mentor-review-section-title flex-1 border-0 pb-0">Nilai Akhir Mentor</h2>
+                            <p class="text-sm font-extrabold text-slate-900">{{ $latestReview?->score ?? ($latestReview?->rating !== null ? (int) $latestReview->rating * 20 : '—') }} <span class="text-[0.65rem] font-medium text-slate-500">/ 100</span></p>
                         </div>
                     </section>
 
@@ -169,11 +144,11 @@
                 <p class="text-[0.62rem] font-bold uppercase tracking-[0.12em] text-ksm">Otorisasi Resmi Pengurus</p>
                 <div class="mt-1 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
                     <div>
-                        <h2 class="text-lg font-bold text-slate-900">Prosedur Keputusan &amp; Penerbitan Final</h2>
+                        <h2 class="text-lg font-bold text-slate-900">Keputusan Approval Publikasi</h2>
                         @if ($project->publication_approved_at)
                             <p class="mt-1 text-xs text-emerald-700">Approval diberikan oleh {{ $publicationApprover?->name ?? 'Pengurus' }} pada {{ $project->publication_approved_at->format('d M Y H:i') }}.</p>
                         @else
-                            <p class="mt-1 text-xs text-slate-500">Approval resmi harus diberikan sebelum project dapat dipublikasikan.</p>
+                            <p class="mt-1 text-xs text-slate-500">Pilih satu keputusan setelah meninjau nilai akhir dan rekomendasi Mentor.</p>
                         @endif
                     </div>
                     <span class="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-[0.6rem] text-slate-500">Tercatat pada log audit KSM</span>
@@ -184,27 +159,40 @@
                 @else
                     <form id="publication-form" method="POST" action="{{ route('dashboard.pengurus.approval.store', $project->project_id) }}" class="mt-4">
                         @csrf
-                        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            @if (!$project->publication_approved_at)
-                                <button type="submit" name="action" value="approve" formnovalidate class="pengurus-secondary-action w-full border-ksm text-ksm hover:bg-rose-50">
-                                    <span aria-hidden="true">☑</span> (1) Berikan Approval Resmi Pengurus
-                                </button>
-                            @else
-                                <div class="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-800">
-                                    <span aria-hidden="true">✓</span> Approval Resmi Tersimpan
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2" role="radiogroup" aria-label="Pilih keputusan approval">
+                            <div data-approval-card="publish" class="rounded-xl border-2 border-slate-200 bg-white p-4 transition hover:border-slate-300">
+                                <label for="approval-publish" class="flex cursor-pointer items-start gap-3">
+                                    <input id="approval-publish" type="radio" name="action" value="publish" required data-approval-choice class="mt-1 h-4 w-4 shrink-0 accent-emerald-600 focus:ring-emerald-500" @checked(old('action') === 'publish')>
+                                    <span>
+                                        <strong class="block text-sm font-bold text-slate-900">Publikasikan ke Etalase Showcase Publik</strong>
+                                        <span class="mt-1 block text-xs leading-relaxed text-slate-600">Project lolos approval Pengurus KSM dan dapat diakses publik.</span>
+                                    </span>
+                                </label>
+                                <p data-publication-confirmation @if (old('action') !== 'publish') hidden @endif class="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs leading-relaxed text-emerald-800" role="status">
+                                    Konfirmasi publikasi: project akan berstatus Published dan tampil di Showcase Publik. Pengaturan Beranda Utama di atas hanya menentukan apakah project juga ditampilkan sebagai pilihan di beranda.
+                                </p>
+                            </div>
+
+                            <div data-approval-card="request_revision" class="rounded-xl border-2 border-slate-200 bg-white p-4 transition hover:border-slate-300">
+                                <label for="approval-revision" class="flex cursor-pointer items-start gap-3">
+                                    <input id="approval-revision" type="radio" name="action" value="request_revision" required data-approval-choice class="mt-1 h-4 w-4 shrink-0 accent-amber-600 focus:ring-amber-500" @checked(old('action') === 'request_revision')>
+                                    <span>
+                                        <strong class="block text-sm font-bold text-slate-900">Revisi Perbaikan</strong>
+                                        <span class="mt-1 block text-xs leading-relaxed text-slate-600">Project belum lolos approval dan dikembalikan untuk diperbaiki.</span>
+                                    </span>
+                                </label>
+                                <div data-revision-fields @if (old('action') !== 'request_revision') hidden @endif class="mt-3">
+                                    <label for="revision-comment" class="mb-1.5 block text-xs font-semibold text-slate-700">Catatan revisi <span class="text-red-600">*</span></label>
+                                    <textarea id="revision-comment" name="comment" maxlength="1000" data-revision-comment @disabled(old('action') !== 'request_revision') class="mentor-review-comment min-h-24 w-full" placeholder="Jelaskan bagian yang harus diperbaiki..." aria-describedby="revision-comment-help">@if (old('action') === 'request_revision'){{ old('comment') }}@endif</textarea>
+                                    <p id="revision-comment-help" class="mt-1 text-[0.68rem] text-slate-500">Wajib diisi sebelum catatan revisi dikirim.</p>
+                                    @error('comment')
+                                        <p class="mt-1 text-xs font-semibold text-red-700">{{ $message }}</p>
+                                    @enderror
                                 </div>
-                            @endif
-                            <button type="submit" name="action" value="publish" class="pengurus-primary-action w-full" @disabled(!$project->publication_approved_at)>
-                                <span aria-hidden="true">⇧</span> (2) Publikasikan ke Etalase Showcase Publik ↗
-                            </button>
+                            </div>
                         </div>
-                    </form>
-                    <form method="POST" action="{{ route('dashboard.pengurus.approval.store', $project->project_id) }}" class="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row">
-                        @csrf
-                        <input type="hidden" name="action" value="request_revision">
-                        <label class="sr-only" for="revision-comment">Catatan revisi</label>
-                        <textarea id="revision-comment" name="comment" maxlength="1000" required class="mentor-review-comment min-h-16 flex-1" placeholder="Catatan untuk dikembalikan kepada mentor atau peserta..."></textarea>
-                        <button type="submit" class="pengurus-secondary-action self-start text-ksm">Kembalikan Catatan ke Mentor / Mahasiswa</button>
+
+                        <button type="submit" data-approval-submit class="pengurus-primary-action mt-4 w-full sm:w-auto" disabled>Pilih keputusan untuk melanjutkan</button>
                     </form>
                 @endif
 
@@ -214,5 +202,59 @@
     </div>
 
     @include('pengurus.partials.footer')
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('publication-form');
+
+            if (!form) {
+                return;
+            }
+
+            const choices = form.querySelectorAll('[data-approval-choice]');
+            const revisionFields = form.querySelector('[data-revision-fields]');
+            const revisionComment = form.querySelector('[data-revision-comment]');
+            const publicationConfirmation = form.querySelector('[data-publication-confirmation]');
+            const submitButton = form.querySelector('[data-approval-submit]');
+
+            const updateDecision = () => {
+                const selectedAction = form.querySelector('[data-approval-choice]:checked')?.value ?? null;
+
+                form.querySelectorAll('[data-approval-card]').forEach((card) => {
+                    const selected = card.dataset.approvalCard === selectedAction;
+                    const publishSelected = selected && selectedAction === 'publish';
+                    const revisionSelected = selected && selectedAction === 'request_revision';
+
+                    card.classList.toggle('border-emerald-500', publishSelected);
+                    card.classList.toggle('bg-emerald-50', publishSelected);
+                    card.classList.toggle('ring-2', selected);
+                    card.classList.toggle('ring-emerald-100', publishSelected);
+                    card.classList.toggle('border-amber-500', revisionSelected);
+                    card.classList.toggle('bg-amber-50', revisionSelected);
+                    card.classList.toggle('ring-amber-100', revisionSelected);
+                });
+
+                const revisionSelected = selectedAction === 'request_revision';
+                revisionFields.hidden = !revisionSelected;
+                revisionComment.disabled = !revisionSelected;
+                revisionComment.required = revisionSelected;
+                publicationConfirmation.hidden = selectedAction !== 'publish';
+                submitButton.disabled = selectedAction === null;
+                submitButton.textContent = selectedAction === 'publish'
+                    ? 'Konfirmasi dan publikasikan project'
+                    : (revisionSelected ? 'Kirim catatan revisi' : 'Pilih keputusan untuk melanjutkan');
+            };
+
+            choices.forEach((choice) => choice.addEventListener('change', updateDecision));
+            form.addEventListener('submit', (event) => {
+                const selectedAction = form.querySelector('[data-approval-choice]:checked')?.value;
+
+                if (selectedAction === 'publish' && !window.confirm('Publikasikan project ini ke Etalase Showcase Publik?')) {
+                    event.preventDefault();
+                }
+            });
+
+            updateDecision();
+        });
+    </script>
 </body>
 </html>
