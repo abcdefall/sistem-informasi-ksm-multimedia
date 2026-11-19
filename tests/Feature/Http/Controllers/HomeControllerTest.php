@@ -251,16 +251,18 @@ it('saves a draft, replaces its thumbnail, and moves it to mentor review when su
         'project_id' => $project->project_id,
         'tool_name' => 'Laravel',
     ]);
-    $this->assertDatabaseHas('audit_logs', [
-        'user_id' => $participant->user_id,
-        'action' => 'PROJECT_SUBMITTED',
-        'description' => 'Mengajukan project "Draft yang diperbarui" dari draft.',
-    ]);
+    $submissionLog = DB::table('audit_logs')
+        ->where('user_id', $participant->user_id)
+        ->where('action', 'PROJECT_SUBMITTED')
+        ->first();
+    expect($submissionLog?->description)
+        ->toStartWith('Peserta mengajukan project "Draft yang diperbarui" dari draft sebagai versi v1.0 (')
+        ->toEndWith(').');
 
     $this->get(route('dashboard.peserta'))
         ->assertOk()
         ->assertSee('aria-current="step" >Review Mentor', false)
-        ->assertSee('Mengajukan project "Draft yang diperbarui" dari draft.')
+        ->assertSee('Peserta mengajukan project "Draft yang diperbarui" dari draft sebagai versi v1.0')
         ->assertSee('oleh Peserta Dua');
     $this->get(route('dashboard.peserta.project.edit', $project->project_id))
         ->assertNotFound();

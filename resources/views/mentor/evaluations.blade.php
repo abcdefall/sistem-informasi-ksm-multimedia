@@ -31,7 +31,7 @@
                                 <h2 class="mt-1 text-lg font-bold text-slate-900">{{ $evaluation->project_title }}</h2>
                             </div>
                             <div class="flex items-center gap-3">
-                                <span class="mentor-field-badge">Nilai {{ $evaluation->rating ?? '—' }}/5</span>
+                                <span class="mentor-field-badge">Nilai {{ $evaluation->score ?? ($evaluation->rating !== null ? (int) $evaluation->rating * 20 : '—') }}/100</span>
                                 <time class="text-xs text-slate-500" datetime="{{ $evaluation->created_at }}">{{ \Illuminate\Support\Carbon::parse($evaluation->created_at)->format('d M Y, H:i') }}</time>
                             </div>
                         </div>

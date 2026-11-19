@@ -26,11 +26,12 @@ class ProjectMediaController extends Controller
         $mediaDisk = config('filesystems.project_media_disk', 'public');
         abort_unless(Storage::disk($mediaDisk)->exists($path), 404);
 
+        $publishedThumbnailPath = $project->published_snapshot['thumbnail_path'];
         $isPublishedThumbnail = $project->status === 'Published'
-            && $project->thumbnail_url === $path;
+            && $publishedThumbnailPath === $path;
         $user = $request->user();
 
-        $isThumbnail = $project->thumbnail_url === $path;
+        $isThumbnail = $project->thumbnail_url === $path || $publishedThumbnailPath === $path;
         $isPublished = $project->status === 'Published';
         $isSubmitted = $project->status !== 'Draft';
         $isPrivileged = $user !== null

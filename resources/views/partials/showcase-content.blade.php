@@ -60,13 +60,17 @@
                 <section class="showcase-grid" aria-label="Daftar karya yang dipublikasikan">
                     @foreach($projects as $project)
                         @php
-                            $projectMembers = $membersByProject->get($project->project_id, collect());
+                            $snapshot = $project->published_snapshot;
+                            $projectMembers = collect($snapshot['team'] ?? $membersByProject->get($project->project_id, collect()))
+                                ->map(fn ($member) => is_string($member) ? $member : data_get($member, 'name'))
+                                ->filter()
+                                ->values();
                             $creatorName = $project->creator?->name ?? 'Tim KSM Multimedia';
                         @endphp
                         <article class="showcase-project-card">
                             <div class="showcase-project-image">
-                                @if($project->thumbnail_url)
-                                    <img src="{{ $project->thumbnail_display_url }}" alt="Pratinjau {{ $project->title }}" loading="lazy">
+                                @if($project->published_thumbnail_url)
+                                    <img src="{{ $project->published_thumbnail_url }}" alt="Pratinjau {{ $snapshot['title'] }}" loading="lazy">
                                 @else
                                     <div class="showcase-image-placeholder">
                                         <svg class="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -75,29 +79,29 @@
                                         </svg>
                                     </div>
                                 @endif
-                                <span class="showcase-project-badge">{{ $project->mentoringField?->field_name ?? 'Multimedia' }}</span>
+                                <span class="showcase-project-badge">{{ $snapshot['field_name'] ?? 'Multimedia' }}</span>
                             </div>
                             <div class="showcase-project-content">
                                 <div class="showcase-project-meta">
                                     <span>{{ $project->project_id }}</span>
-                                    @if($project->period?->period_name)
+                                    @if($snapshot['period_name'])
                                         <span aria-hidden="true">&bull;</span>
-                                        <span>{{ $project->period->period_name }}</span>
+                                        <span>{{ $snapshot['period_name'] }}</span>
                                     @endif
                                 </div>
-                                <h2 title="{{ $project->title }}">
-                                    <a href="{{ route('showcase.show', $project->project_id) }}">{{ $project->title }}</a>
+                                <h2 title="{{ $snapshot['title'] }}">
+                                    <a href="{{ route('showcase.show', $project->project_id) }}">{{ $snapshot['title'] }}</a>
                                 </h2>
                                 <p class="showcase-project-description">
-                                    {{ $project->description ?: 'Karya capstone mahasiswa KSM Multimedia.' }}
+                                    {{ $snapshot['description'] ?: 'Karya capstone mahasiswa KSM Multimedia.' }}
                                 </p>
                                 <div class="showcase-project-footer">
                                     <div class="showcase-author-avatar" aria-hidden="true">{{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($creatorName, 0, 2)) }}</div>
                                     <div class="showcase-author">
                                         <span>{{ $projectMembers->isNotEmpty() ? $projectMembers->take(2)->implode(', ') : $creatorName }}@if($projectMembers->count() > 2) +{{ $projectMembers->count() - 2 }} lainnya @endif</span>
-                                        <small>{{ $project->mentoringField?->field_name ?? 'KSM Multimedia' }}</small>
+                                        <small>{{ $snapshot['field_name'] ?? 'KSM Multimedia' }}</small>
                                     </div>
-                                    <a href="{{ route('showcase.show', $project->project_id) }}" class="showcase-project-link" aria-label="Lihat detail {{ $project->title }}">
+                                    <a href="{{ route('showcase.show', $project->project_id) }}" class="showcase-project-link" aria-label="Lihat detail {{ $snapshot['title'] }}">
                                         Detail <span aria-hidden="true">&rarr;</span>
                                     </a>
                                 </div>

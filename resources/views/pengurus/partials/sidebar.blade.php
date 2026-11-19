@@ -12,6 +12,14 @@
                     <span class="mentor-menu-count">{{ $pendingApprovalCount }}</span>
                 @endif
             </a>
+            <a href="{{ route('dashboard.pengurus.archives') }}" class="sidebar-link {{ $activeMenu === 'archives' ? 'active' : '' }}" @if ($activeMenu === 'archives') aria-current="page" @endif>
+                <svg class="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h18v4H3zM5 9v10h14V9M10 13h4"/></svg>
+                <span>Archive Project</span>
+            </a>
+            <a href="{{ route('dashboard.pengurus.version-history') }}" class="sidebar-link {{ $activeMenu === 'versions' ? 'active' : '' }}" @if ($activeMenu === 'versions') aria-current="page" @endif>
+                <svg class="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-width="2" d="M4 6h16M4 12h10M4 18h16"/><circle cx="18" cy="12" r="2"/></svg>
+                <span>Version History</span>
+            </a>
             <a href="{{ route('dashboard.pengurus.audit') }}" class="sidebar-link {{ $activeMenu === 'audit' ? 'active' : '' }}" @if ($activeMenu === 'audit') aria-current="page" @endif>
                 <svg class="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
                 <span>Log Audit Trail</span>

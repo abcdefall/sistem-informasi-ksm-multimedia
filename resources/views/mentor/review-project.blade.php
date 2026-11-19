@@ -14,18 +14,6 @@
         <aside class="participant-sidebar">
             <div class="participant-sidebar-shell">
                 @include('mentor.partials.sidebar-menu', ['activeMenu' => 'queue'])
-
-                <section class="mentor-rubric-card">
-                    <div class="mb-2 flex items-center gap-2 text-ksm">
-                        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke-width="1.8"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l2.5 2.5M4 12H2m20 0h-2"/></svg>
-                        <h2 class="text-sm font-bold">Bobot Penilaian</h2>
-                    </div>
-                    <ul class="space-y-2 text-[0.7rem] leading-snug text-slate-700">
-                        <li class="flex justify-between gap-2"><span>Kualitas teknis &amp; arsitektur</span><strong>40%</strong></li>
-                        <li class="flex justify-between gap-2"><span>Aset &amp; estetika visual</span><strong>30%</strong></li>
-                        <li class="flex justify-between gap-2"><span>Dokumentasi &amp; kesiapan publik</span><strong>30%</strong></li>
-                    </ul>
-                </section>
             </div>
         </aside>
 
@@ -37,8 +25,14 @@
             <header class="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                 <div>
                     <p class="text-xs font-bold uppercase tracking-[0.12em] text-ksm">Review Project</p>
-                    <h1 class="mt-1 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">{{ $project->title }}</h1>
+                    <h1 class="mt-1 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">{{ $reviewSnapshot['title'] }}</h1>
                     <p class="mt-1 text-sm text-slate-500">Periksa kelengkapan proyek, berikan penilaian, lalu tentukan tindak lanjut.</p>
+                    @if ($latestVersion)
+                        <p class="mt-2 inline-flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
+                            <span class="rounded-full bg-indigo-100 px-2.5 py-1 text-indigo-800">Menilai {{ $latestVersion->version_number }}</span>
+                            <span>Diajukan {{ \Illuminate\Support\Carbon::parse($latestVersion->submitted_at ?? $latestVersion->created_at)->format('d M Y, H:i') }}</span>
+                        </p>
+                    @endif
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="mentor-status-badge {{ $project->status === 'Resubmitted' ? 'mentor-status-resubmitted' : ($project->status === 'In Review' ? 'mentor-status-in-review' : 'mentor-status-submitted') }}">{{ $project->status }}</span>
@@ -68,21 +62,21 @@
                     </div>
                     <div>
                         <p class="text-xs font-semibold text-slate-400">BIDANG MENTORING</p>
-                        <p class="mt-1 text-sm font-bold text-slate-800">{{ $project->mentoringField?->field_name ?? 'Belum ditentukan' }}</p>
+                        <p class="mt-1 text-sm font-bold text-slate-800">{{ $reviewSnapshot['field_name'] ?? 'Belum ditentukan' }}</p>
                     </div>
                     <div>
                         <p class="text-xs font-semibold text-slate-400">PERIODE</p>
-                        <p class="mt-1 text-sm font-bold text-slate-800">{{ $period?->period_name ?? 'Tidak tersedia' }}</p>
+                        <p class="mt-1 text-sm font-bold text-slate-800">{{ $reviewSnapshot['period_name'] ?? 'Tidak tersedia' }}</p>
                     </div>
                 </div>
-                @if ($project->thumbnail_url)
+                @if ($reviewSnapshot['thumbnail_path'])
                     <div class="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                        <img src="{{ $project->thumbnail_display_url }}" alt="Thumbnail {{ $project->title }}" class="max-h-[24rem] w-full object-contain">
+                        <img src="{{ route('media.show', ['path' => $reviewSnapshot['thumbnail_path']]) }}" alt="Thumbnail {{ $reviewSnapshot['title'] }}" class="max-h-[24rem] w-full object-contain">
                     </div>
                 @endif
                 <div class="border-t border-slate-100 pt-4">
                     <h3 class="text-sm font-bold text-slate-800">Deskripsi</h3>
-                    <p class="mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-600">{{ $project->description ?: 'Belum ada deskripsi project.' }}</p>
+                    <p class="mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-600">{{ $reviewSnapshot['description'] ?: 'Belum ada deskripsi project.' }}</p>
                 </div>
                 @if ($projectUrl || $files->isNotEmpty())
                     <div class="mt-4 flex flex-wrap gap-2">
@@ -90,7 +84,7 @@
                             <a href="{{ $projectUrl }}" target="_blank" rel="noopener noreferrer" class="mentor-review-link">Buka Demo / Repository <span aria-hidden="true">↗</span></a>
                         @endif
                         @foreach ($files as $file)
-                            <a href="{{ route('media.show', ['path' => $file->file_path]) }}" target="_blank" rel="noopener noreferrer" class="mentor-review-link">{{ $file->file_name }} <span aria-hidden="true">↗</span></a>
+                            <a href="{{ route('media.show', ['path' => $file->file_path]) }}" target="_blank" rel="noopener noreferrer" class="mentor-review-link">{{ $file->file_name_snapshot }} <span aria-hidden="true">↗</span></a>
                         @endforeach
                     </div>
                 @endif
@@ -138,33 +132,30 @@
             <form method="POST" action="{{ route('dashboard.mentor.project.review.store', $project->project_id) }}" class="space-y-4">
                 @csrf
                 <section class="mentor-review-card">
-                    <h2 class="mentor-review-section-title"><span aria-hidden="true">✦</span> Penilaian Rubrik</h2>
-                    <p class="mt-3 text-xs leading-relaxed text-slate-500">Pilih satu tingkat penilaian untuk setiap kriteria. Nilai tiap tingkat (1, 3, atau 5) dihitung sesuai bobot untuk menghasilkan rating keseluruhan 1–5.</p>
-                    @php
-                        $criteria = [
-                            'technical_quality' => ['Kualitas teknis & arsitektur', '40%', ['Perlu Perbaikan', 'Memenuhi Standar', 'Istimewa / Melampaui']],
-                            'creative_quality' => ['Aset & estetika visual', '30%', ['Cukup', 'Sangat Baik', 'Istimewa']],
-                            'publication_readiness' => ['Dokumentasi & kesiapan publik', '30%', ['Belum Siap', 'Memenuhi Syarat', 'Sangat Lengkap']],
-                        ];
-                        $levels = ['needs_improvement', 'meets_standard', 'exceptional'];
-                    @endphp
-                    <div class="mt-4 space-y-3">
-                        @foreach ($criteria as $key => [$label, $weight, $options])
-                            <fieldset class="mentor-criterion">
-                                <legend class="mb-3 flex w-full justify-between gap-3 text-sm font-bold text-slate-800">
-                                    <span>{{ $label }}</span><span class="shrink-0 text-xs font-bold text-ksm">{{ $weight }}</span>
-                                </legend>
-                                <div class="mentor-rating-options">
-                                    @foreach ($levels as $index => $level)
-                                        @php($inputId = 'rubric-' . $key . '-' . $level)
-                                        <div class="mentor-rating-option">
-                                            <input id="{{ $inputId }}" type="radio" name="rubric[{{ $key }}]" value="{{ $level }}" @checked(old('rubric.' . $key) === $level)>
-                                            <label for="{{ $inputId }}">{{ $options[$index] }}</label>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            </fieldset>
-                        @endforeach
+                    <label for="score" class="mentor-review-section-title"><span aria-hidden="true">✦</span> Nilai Akhir Project <span class="text-red-600">*</span></label>
+                    <p class="mt-3 text-xs leading-relaxed text-slate-500">Berikan satu nilai berdasarkan penilaian Anda terhadap keseluruhan kualitas project (0–100).</p>
+                    <div class="mt-4 max-w-xs">
+                        <div class="relative">
+                            <input
+                                id="score"
+                                name="score"
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="1"
+                                inputmode="numeric"
+                                required
+                                value="{{ old('score') }}"
+                                class="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 pr-16 text-lg font-bold text-slate-900 shadow-sm focus:border-ksm focus:outline-none focus:ring-2 focus:ring-rose-200"
+                                placeholder="Contoh: 85"
+                                aria-describedby="score-help"
+                            >
+                            <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-semibold text-slate-500">/ 100</span>
+                        </div>
+                        <p id="score-help" class="mt-1 text-xs text-slate-500">Masukkan bilangan bulat dari 0 sampai 100.</p>
+                        @error('score')
+                            <p class="mt-2 text-sm font-medium text-red-600" role="alert">{{ $message }}</p>
+                        @enderror
                     </div>
                 </section>
 

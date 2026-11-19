@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\ProjectArchiveController;
 use App\Http\Controllers\ProjectMediaController;
+use App\Http\Controllers\ProjectVersionHistoryController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -58,6 +60,13 @@ Route::middleware(['auth', 'active.user'])->group(function () {
     Route::put('/dashboard/mentor/schedules/{scheduleId}', [HomeController::class, 'updateMentorSchedule'])->name('dashboard.mentor.schedules.update');
     Route::patch('/dashboard/mentor/schedules/{scheduleId}/cancel', [HomeController::class, 'cancelMentorSchedule'])->name('dashboard.mentor.schedules.cancel');
     Route::get('/dashboard/pengurus', [HomeController::class, 'dashboardPengurus'])->name('dashboard.pengurus');
+    Route::get('/dashboard/pengurus/archives', [ProjectArchiveController::class, 'index'])->name('dashboard.pengurus.archives');
+    Route::get('/dashboard/pengurus/archives/{projectId}', [ProjectArchiveController::class, 'show'])->name('dashboard.pengurus.archives.show');
+    Route::post('/dashboard/pengurus/projects/{projectId}/archive', [ProjectArchiveController::class, 'archive'])->name('dashboard.pengurus.projects.archive');
+    Route::post('/dashboard/pengurus/archives/{projectId}/restore', [ProjectArchiveController::class, 'restore'])->name('dashboard.pengurus.archives.restore');
+    Route::get('/dashboard/pengurus/version-history', [ProjectVersionHistoryController::class, 'index'])->name('dashboard.pengurus.version-history');
+    Route::get('/dashboard/pengurus/version-history/{projectId}', [ProjectVersionHistoryController::class, 'showProject'])->name('dashboard.pengurus.version-history.project');
+    Route::get('/dashboard/pengurus/version-history/{projectId}/{versionId}', [ProjectVersionHistoryController::class, 'show'])->name('dashboard.pengurus.version-history.show');
     Route::get('/dashboard/pengurus/approval-publikasi', [HomeController::class, 'pengurusApprovals'])->name('dashboard.pengurus.approvals');
     Route::get('/dashboard/pengurus/approval-publikasi/{project}', [HomeController::class, 'showPengurusApproval'])->name('dashboard.pengurus.approval.show');
     Route::post('/dashboard/pengurus/approval-publikasi/{project}', [HomeController::class, 'storePengurusApproval'])->name('dashboard.pengurus.approval.store');
@@ -67,6 +76,8 @@ Route::middleware(['auth', 'active.user'])->group(function () {
     Route::patch('/dashboard/pengurus/users/{userId}/status', [HomeController::class, 'togglePengurusUserStatus'])->name('dashboard.pengurus.users.status');
     Route::get('/dashboard/pengurus/settings', [HomeController::class, 'pengurusSettings'])->name('dashboard.pengurus.settings');
     Route::put('/dashboard/pengurus/settings/active-period', [HomeController::class, 'updatePengurusActivePeriod'])->name('dashboard.pengurus.settings.period');
+    Route::post('/dashboard/pengurus/settings/periods', [HomeController::class, 'storePengurusPeriod'])->name('dashboard.pengurus.settings.periods.store');
+    Route::put('/dashboard/pengurus/settings/periods/{periodId}', [HomeController::class, 'updatePengurusPeriod'])->name('dashboard.pengurus.settings.periods.update');
     Route::get('/dashboard/mentor/projects/{project}/review', [HomeController::class, 'showMentorReview'])->name('dashboard.mentor.project.review');
     Route::post('/dashboard/mentor/projects/{project}/review', [HomeController::class, 'storeMentorReview'])->name('dashboard.mentor.project.review.store');
     Route::get('/dashboard/peserta/projects', [HomeController::class, 'participantProjects'])->name('dashboard.peserta.projects.index');
